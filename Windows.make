@@ -4,10 +4,10 @@
 define make_directory
 	if not exist $(1) (md $(1))
 endef
-$(call make_directory, "Build")
-$(call make_directory, "Build\Cache")
-$(call make_directory, "Build\Debug")
-$(call make_directory, "Build\Release")
+$(call, make_directory, Build)
+$(call, make_directory, Build\Cache)
+$(call, make_directory, Build\Debug)
+$(call, make_directory, Build\Release)
 
 RAYLIB=$(shell odin root)vendor\raylib\windows\raylib.lib
 
