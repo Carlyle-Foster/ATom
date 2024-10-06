@@ -10,10 +10,10 @@ linux: Build/Debug/ATom
 build_dir_lin:
 	shell mkdir -p Build Build/Cache Build/Debug Build/Release
 
-Build/Debug/ATom: Build/Cache/sqlite.a build_dir_lin
+Build/Debug/ATom: Build/Cache/sqlite.lib build_dir_lin
 	odin build . -out:$@
 
-Build/Cache/sqlite.a: sqlite/sqlite3.c build_dir_lin
+Build/Cache/sqlite.lib: sqlite/sqlite3.c build_dir_lin
 	clang -c $< -o $@ && echo 'built sqlite for linux'
 
 #WINDOWS
@@ -34,14 +34,11 @@ build_dir_win:
 	$(call make_directory, "Build\Debug")
 	$(call make_directory, "Build\Release")
 
-Build\Debug\ATom.exe: Build\Cache\ATom.obj Build\Cache\sqlite.lib build_dir_win
-	cl $<  /Fe:$@ /link msvcrt.lib $(RAYLIB_DOT_LIB) Build\Cache\sqlite.lib
-
-Build\Cache\ATom.obj: main.odin build_dir_win
-	odin build . -out:$@ -build-mode:obj -target:windows_amd64
+Build\Debug\ATom.exe: main.odin sqlite\sqlite.odin $(RAYLIB_DOT_LIB) Build\Cache\sqlite.lib build_dir_win
+	odin build . -out:$@ -target:windows_amd64
 
 Build\Cache\sqlite.lib: Build\Cache\sqlite.obj build_dir_win
-	lib $< /OUT:$@ && echo 'built sqlite for windows' && del $<
+	lib $< /OUT:$@ && echo 'built sqlite for windows'
 
 Build\Cache\sqlite.obj: sqlite\sqlite3.c build_dir_win
 	cl /c $< && move /Y sqlite3.obj $@
