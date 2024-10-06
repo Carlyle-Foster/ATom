@@ -1,25 +1,20 @@
-RAYLIB_DOT_LIB="$(odin root)vendor\raylib\windows\raylib.lib"
+RAYLIB_DOT_LIB=$(shell odin root)vendor\raylib\windows\raylib.lib
 
 .PHONY: all linux windows build_dir_lin Build_dir_win
 
 all: linux
 
 linux: Build/Debug/ATom
-	./$@
+	$<
 
-build_dir_posix:
-	$(shell mkdir -p Build Build/Cache Build/Debug Build/Release)
+build_dir_lin:
+	shell mkdir -p Build Build/Cache Build/Debug Build/Release
 
-Build/Debug/ATom: Build/Cache/ATom.o Build/Cache/sqlite.a build_dir_lin
-	clang -Wno-unused-command-line-argument $<  -o $@  -lm -lc \
--L/ -l:$(HOME)/.local/share/odin/vendor/raylib/linux/libraylib.a  -ldl  -lpthread \
--L./Build/Cache -l:sqlite.a -no-pie
-
-Build/Cache/ATom.o: main.odin build_dir_lin
-	$(HOME)/.local/share/odin/odin build . -out:$@ -build-mode:obj
+Build/Debug/ATom: Build/Cache/sqlite.a build_dir_lin
+	odin build . -out:$@
 
 Build/Cache/sqlite.a: sqlite/sqlite3.c build_dir_lin
-	clang -c $^ -o $@ && echo 'built sqlite for linux'
+	clang -c $< -o $@ && echo 'built sqlite for linux'
 
 #WINDOWS
 
@@ -31,7 +26,7 @@ define make_directory
 endef
 
 windows: Build\Debug\ATom.exe
-	$@
+	$<
 
 build_dir_win:
 	$(call make_directory, "Build")

@@ -1,6 +1,6 @@
 package sqlite
 
-foreign import sqlite "sqlite"
+foreign import sqlite "../Build/Cache/sqlite.a"
 
 @(link_prefix="sqlite3_")
 foreign sqlite {
