@@ -6,7 +6,7 @@ RAYLIB=$(shell odin root)vendor/raylib/linux/libraylib.a
 
 
 all: Build/Debug/ATom
-	$<
+	./$<
 
 Build/Debug/ATom: main.odin sqlite/sqlite.odin Build/Cache/sqlite.a $(RAYLIB)
 	odin build . -out:$@
