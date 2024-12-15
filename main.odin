@@ -1,53 +1,55 @@
 package ATom
 
 import "core:fmt"
+import "core:strings"
 import "core:os"
 import "core:time"
 import "core:math"
-import "core:math/rand"
-import "core:container/small_array"
 
 import rl "vendor:raylib"
 
 import sqlite "sqlite"
 
-playerID: factionID = 0
+playerFaction: ^Faction = {}
 
 cities := [dynamic]City{}
 units := [dynamic]Unit{}
 factions := [dynamic]Faction{}
-
-buttons := make([dynamic]Button, 0, 128)
 
 mapDimensions: [2]i32
 gameMap: [dynamic]Tile
 
 windowDimensions :: Vector2{1280, 720}
 
+windowRect: Rect = {}
+
 tileSize: i32 = 64
 
+POP_DIET: f32 = 2.0
+
 cam: rl.Camera2D = {}
+camNoZoom: rl.Camera2D = {}
 mousePosition := Vector2{}
 mouseMovement := Vector2{}
 leftMouseDown := false
 
-factionID   :: u16
-cityID      :: u16
-unitID      :: u16
+selectedCity: ^City = {}
+selectedUnit: ^Unit = {}
 
-color :: rl.Color
+Color :: rl.Color
 Vector2 :: rl.Vector2
 Rect :: rl.Rectangle
-coordinate :: [2]i16
+Coordinate :: [2]i16
 
 println :: fmt.println
-FileInfo :: os.File_Info
 
+FileInfo :: os.File_Info
 
 textures: TextureManifest = {}
 TextureManifest :: struct {
     city: rl.Texture,
     valet: rl.Texture,
+    pop: rl.Texture,
 }
 
 YieldType :: enum i8 {
@@ -57,31 +59,45 @@ YieldType :: enum i8 {
     SCIENCE,
 }
 
-TerrainType :: enum i16 {
-    NO_TERRAIN = -1,
-    DESERT,
-    SEMIDESERT,
-    BOREAL,
-    MEADOW,
-    HIGHLANDS,
-    BOG,
-    SHALLOWS,
-    SEA,
-    OCEAN,
-    RAINFOREST,
-    OLDGROWTH,
-    TERRAIN_TYPE_COUNT,
-}
+// TerrainType :: enum i16 {
+//     NO_TERRAIN = -1,
+//     DESERT,
+//     SEMIDESERT,
+//     BOREAL,
+//     MEADOW,
+//     HIGHLANDS,
+//     BOG,
+//     SHALLOWS,
+//     SEA,
+//     OCEAN,
+//     RAINFOREST,
+//     OLDGROWTH,
+//     TERRAIN_TYPE_COUNT,
+// }
 
 Terrain :: struct {
-    yields: [YieldType]i32,
+    name: cstring,
+    yields: [YieldType]f32,
+    gate: bool,
+    hue: f32,
 }
 
-TerrainManifest := #partial [TerrainType]Terrain{
-    .DESERT = {{.FOOD = 0, .PRODUCTION = 1, .GOLD = 0, .SCIENCE = 1}},
-    .RAINFOREST = {{.FOOD = 2, .PRODUCTION = 0, .GOLD = 1, .SCIENCE = 1}},
-    .SHALLOWS = {{.FOOD = 1, .PRODUCTION = 0, .GOLD = 1, .SCIENCE = 1}},
+Pop :: struct {
+    state: enum {
+        WORKING,
+        UNEMPLOYED,
+    },
+    tile: ^Tile,
 }
+
+new_pop :: proc(t: ^Tile) -> Pop {
+    return Pop{.UNEMPLOYED, t}
+}
+
+TerrainManifest : [dynamic]Terrain = {}
+UnitTypeManifest : [dynamic]UnitType = {}
+BuildingTypeManifest: [dynamic]BuildingType = {}
+projectManifest: [dynamic]ProjectType = {}
 
 ResourceType :: enum i16 {
     NO_RESOURCE = -1,
@@ -99,103 +115,109 @@ ResourceType :: enum i16 {
     RESOURCE_TYPE_COUNT,
 }
 
-unitType :: enum i16 {
-    NO_UNIT = -1,
-    VALET,
-    SETTLER,
-    UNIT_TYPE_COUNT,
+BuildingType :: struct {
+    name: cstring,
+    texture: rl.Texture,
+    yields: [YieldType]f32,
+    multipliers: [YieldType]f32,
+    cost: i32,
 }
 
-Tile :: struct {
-    terrain: TerrainType,
-    resource: ResourceType,
-    owner: ^City,
-    discovery_mask: u64,
-    visibility_mask: u64,
+Building :: struct {
+    type: BuildingType,
 }
 
-City :: struct {
-    owner: factionID,
-    population: f32,
-    location: coordinate,
-    tiles: [dynamic]coordinate,
+createBuilding :: proc(t: BuildingType, c: ^City) -> ^Building {
+    building := Building {
+        type = t,
+    }
+    println("BUILT:", building)
+    append(&c.buildings, building)
+    return &c.buildings[len(c.buildings) - 1]
 }
 
-Unit :: struct {
-    type: unitType,
-    owner: factionID,
-    position: coordinate,
+ProjectType :: union {
+    UnitType,
+    BuildingType,
+}
+
+getProjectCost :: proc(p: ProjectType) -> i32 {
+    switch type in p {
+        case UnitType: {
+            return type.cost
+        }
+        case BuildingType: {
+            return type.cost
+        }
+        case: {
+            panic("")
+        }
+    }
 }
 
 Faction :: struct {
-    cities: [dynamic]cityID,
-    units:  [dynamic]unitID,
-};
+    id: u32,
+    cities: [dynamic]^City,
+    units:  [dynamic]^Unit,
+    gold: f32,
+}
 
-Button :: struct {
+nextFactionID :: proc() -> u32 {
+    @(static) id :u32 = 0
+    value := id
+    id += 1
+    return value
+}
+
+rectsToDraw := make([dynamic]UI_Rect, 0, 64)
+textToDraw := make([dynamic]UI_Text, 0, 64)
+spritesToDraw := make([dynamic]UI_Sprite, 0, 64)
+
+DrawMode :: enum {
+    MAP,
+    UI,
+}
+
+UI_Rect :: struct {
     rect: Rect,
-    color: color,
+    color: Color,
+    mode: DrawMode,
+}
+
+UI_Text :: struct {
     text: cstring,
+    rect: Rect,
+    color: Color,
+    align: Alignment,
+    mode: DrawMode,
 }
 
-getTileYields :: proc(tile: ^Tile) -> [YieldType]i32 {
-    return TerrainManifest[tile.terrain].yields
-}
-
-getTileDestructured ::proc(x, y: i32) -> []Tile {
-    if (x < 0 || x >= mapDimensions.x) || (y < 0 || y >= mapDimensions.y) {
-        return {}
-    }
-    else {
-        location := x + y*mapDimensions.x
-        return gameMap[location:location+1]
-    }
-}
-
-getTileByCoordinates ::proc(c: coordinate) -> []Tile {
-    if (c.x < 0 || c.x >= i16(mapDimensions.x)) || (c.y < 0 || c.y >= i16(mapDimensions.y)) {
-        return {}
-    }
-    else {
-        location := i32(c.x) + i32(c.y)*mapDimensions.x
-        return gameMap[location:location+1]
-    }
-}
-
-getTile :: proc{getTileByCoordinates, getTileDestructured}
-
-forTileInRadius :: proc(center: coordinate, range: i16, callback: proc([]Tile)) {
-    for y in -range..=range {
-        for x in -range..=range {
-            t := getTile(coordinate{center.x + x, center.y + y})
-            if t != nil {
-                callback(t)
-            }
-        }
-    }
+UI_Sprite :: struct {
+    texture: rl.Texture,
+    rect: Rect,
+    mode: DrawMode,
 }
 
 generateMap :: proc() {
     offCenter := 0.0
     radius := 0.0
-    archetype := Tile{.DESERT, .NO_RESOURCE, nil, 0, 0}
-    prototype := Tile{.RAINFOREST, .COCOA, nil, 0, 0}
     for y in 0..<mapDimensions.y {
         for x in 0..<mapDimensions.x {
-            offCenter   =   math.abs(f64(x)/f64(mapDimensions.x) - 0.5)*2.0;
-            radius      =   math.sin(f64(y) / f64(mapDimensions.y) * math.PI);
+            offCenter   =   math.abs(f64(x)/f64(mapDimensions.x) - 0.5)*2.0
+            radius      =   math.sin(f64(y) / f64(mapDimensions.y) * math.PI)
             //fmt.println("offCentre: ", offCenter, "radius: ", radius)
+            c := Coordinate{i16(x),i16(y)}
             if radius > offCenter {
                 r := rl.GetRandomValue(0, 24)
                 if r == 0 {
-                    getTile(x,y)[0]  = (Tile){.SHALLOWS, .PEARLS, nil, 0, 0};
+                    getTile(c)^  = createTile(c, TerrainManifest[0], .PEARLS)
                 }
                 else {
-                    getTile(x,y)[0]  = prototype;
+                    getTile(c)^  = createTile(c, TerrainManifest[1], .PLATINUM)
                 }
             }
             else {
-                getTile(x,y)[0] = archetype;
+                getTile(c)^ = createTile(c, TerrainManifest[2], .PLATINUM)
             }
         }
     }
@@ -203,63 +225,161 @@ generateMap :: proc() {
 
 drawMap :: proc() {
     tile := Tile{}
-    color := color{}
+    color := Color{}
     size := i32(tileSize)
     for y in 0..<mapDimensions.y {
         for x in 0..<mapDimensions.x {
             tile = gameMap[x + y*mapDimensions.x]
-            #partial switch tile.terrain {
-                case .NO_TERRAIN:   fmt.println("wtf")
-                case .DESERT:       color = rl.YELLOW;
-                case .SEMIDESERT:   color = rl.BROWN
-                case .BOREAL:       color = rl.GetColor(0x181818ff)
-                case .MEADOW:       color = rl.GREEN
-                case .HIGHLANDS:    color = rl.GetColor(0x468f0fff)
-                case .BOG:          color = rl.LIGHTGRAY
-                case .SHALLOWS:     color = rl.SKYBLUE
-                case .SEA:          color = rl.BLUE
-                case .OCEAN:        color = rl.DARKBLUE
-                case .RAINFOREST:   color = rl.DARKGREEN
-                case .OLDGROWTH:    color = rl.GetColor(0x64442eff)
-            }
-            if tile.discovery_mask & (1 << playerID) > 0 {
-                rl.DrawRectangle(x*size, y*size, size, size, color);
+            color = rl.ColorFromHSV(tile.terrain.hue, 0.65, 1)
+            if tile.discovery_mask & (1 << playerFaction.id) > 0 {
+                rl.DrawRectangle(x*size, y*size, size, size, color)
             }
         }
     }
-    drawCities();
-    drawUnits();
+    drawCities()
+    drawUnits()
 }
 
-drawCities :: proc() {
+showBanners :: proc() {
     for city in cities {
-        drawCity(city)
+        showBanner(city)
     }
-    drawCity :: proc(city: City) {
-        rl.DrawTextureEx(textures.city, Vector2{f32(i32(city.location.x)*tileSize), f32(i32(city.location.y)*tileSize)}, 0.0, 0.5, rl.WHITE);
+    showBanner :: proc(using city : City) {
+        scale := 1.0 / cam.zoom
+        lift := i32(20.0*scale)
+        x: i32 = i32(location.coordinate.x)*tileSize + tileSize/2
+        y: i32 = i32(location.coordinate.y)*tileSize - lift 
+        width := i32(128.0*scale)
+        height := i32(32.0*scale)
+        rect := Rect{f32(x - width/2), f32(y), f32(width), f32(height)}
+        showRect(rect, rl.GetColor(0xaa2299bb), .MAP)
+        pop_rect := chopRectangle(&rect, rect.width/4, .LEFT)
+        showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT, .MAP)
+        builder := strings.builder_make()
+        strings.write_int(&builder, len(population))
+        pop_text := strings.to_cstring(&builder)
+        showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER, .MAP)
     }
 }
 
-drawBanners :: proc() {
-    for city in cities {
-        drawBanner(city)
-    }
-    drawBanner :: proc(city : City) {
-        width : i32 = 82
-        height : i32 = 28
-        lift : i32 = 20
-        rl.DrawRectangle(i32(city.location.x)*tileSize + (tileSize - width)/2, i32(city.location.y)*tileSize - lift, width, height, rl.GetColor(0x992299bb))
+showSidebar :: proc(r: Rect) {
+    r := r
+    padding :: 1.45
+    assert(selectedCity != nil)
+    
+    showRect(r, rl.PURPLE, .UI)
+    text: cstring = selectedCity != {} ? selectedCity.name : "NULL"
+    title_rect := chopRectangle(&r, r.height/5.0, .TOP)
+    entry_size := r.height/5
+    showRect(title_rect, rl.GetColor(0x992465ff), .UI)
+    showText(title_rect, rl.GetColor(0x229f54ff), text, ALIGN_CENTER, .UI)
+    for project in projectManifest {
+        name: cstring 
+        texture: rl.Texture  
+        switch type in project {
+            case UnitType: {
+                name = type.name
+                texture = type.texture
+            }
+            case BuildingType: {
+                name = type.name
+                texture = type.texture
+            }
+        }
+        entry_rect := chopRectangle(&r, entry_size, .TOP)
+        if showButton(entry_rect, rl.PURPLE, .UI) {
+            if rl.IsMouseButtonPressed(.LEFT) {
+                selectedCity.project = project
+            }
+        }
+        sprite_rect := chopRectangle(&entry_rect, f32(texture.width/2), .LEFT)
+        showSprite(sprite_rect, texture, .UI)
+        entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
+        showRect(entry_rect, rl.GetColor(0x18181899), .UI)
+        entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
+        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, .UI, rl.GOLD)
     }
 }
 
-drawUnits :: proc() {
-    for unit in units {
-        drawUnit(unit)
+
+
+chopRectangle :: proc(r: ^Rect, size: f32, side: enum{TOP, BOTTOM, LEFT, RIGHT}) -> Rect {
+    x, y: f32
+    width, height: f32
+    switch side {
+        case .TOP: {
+            x = r.x
+            y = r.y
+            width = r.width
+            height = size
+            r.y += size
+            r.height -= size
+        }
+        case .BOTTOM: {
+            x = r.x
+            y = r.y + r.height - size
+            width = r.width
+            height = size
+            r.height -= size
+        }
+        case .LEFT: {
+            x = r.x
+            y = r.y
+            width = size
+            height = r.height
+            r.x += size
+            r.width -= size
+        }
+        case .RIGHT: {
+            x = r.x + r.width - size
+            y = r.y
+            width = size
+            height = r.height
+            r.width -= size
+        }
     }
-    drawUnit :: proc(unit: Unit) {
-        rl.DrawTextureEx(textures.valet, Vector2{f32(i32(unit.position.x)*tileSize), f32(i32(unit.position.y)*tileSize)}, 0.0, 0.5, rl.WHITE);
+    return Rect{x, y, width, height}
+}
+
+subRectangleRaw :: proc(r: Rect, x_percent, y_percent: f32, w, h: f32) -> Rect {
+    return Rect {
+        x = r.x + r.width * x_percent,
+        y = r.y + r.height * y_percent,
+        width = w,
+        height = h,
     }
 }
+
+Alignment :: enum i8 {
+    START,
+    HALFWAY,
+    END,
+}
+
+ALIGN_LEFT :: Alignment.START
+ALIGN_TOP :: Alignment.START
+ALIGN_CENTER :: Alignment.HALFWAY
+ALIGN_RIGHT :: Alignment.END
+ALIGN_BOTTOM :: Alignment.END
+
+subRectangleCooked :: proc(r: Rect, w_percent, h_percent: f32, x_align, y_align: Alignment) -> Rect {
+    x, y: f32
+    switch x_align {
+        case .START: x = 0
+        case .HALFWAY: x = 0.5 - w_percent/2
+        case .END: x = 1.0 - w_percent
+    }
+    switch y_align {
+        case .START: y = 0
+        case .HALFWAY: y = 0.5 - h_percent/2
+        case .END: y = 1.0 - h_percent
+    }
+    return subRectangleRaw(r, x, y, r.width*w_percent, r.height*h_percent)
+}
+
+subRectangle :: proc{subRectangleRaw, subRectangleCooked}
+
+
 
 updateCamera :: proc() {
     if rl.IsMouseButtonDown(.LEFT) {
@@ -267,83 +387,218 @@ updateCamera :: proc() {
             mouseMovement = Vector2{}
         }
         cam.target -= mouseMovement
+        camNoZoom.target = cam.target
     }
     cam.zoom += rl.GetMouseWheelMoveV().y / 10.0
 }
 
-updateCity :: proc(c: ^City) {
-    c.population *= 1.1
-    println("Population: ", c.population)
-}
-
 nextTurn :: proc() {
+    for &city in playerFaction.cities {
+        if city.project == nil {
+            selectedCity = city
+            return
+        }
+    }
     println("turn")
     for &city in cities {
         updateCity(&city)
     }
 }
 
-showButton :: proc(rect: Rect, color: color, text: cstring) -> bool {
-    append(&buttons, Button{rect, color, text})
+showRect :: proc(rect: Rect, color: Color, mode: DrawMode) {
+    append(&rectsToDraw, UI_Rect{rect, color, mode})
+}
+
+showSprite :: proc(rect: Rect, sprite: rl.Texture, mode: DrawMode, background: Color = rl.BLANK) {
+    if background != rl.BLANK {
+        showRect(rect, background, mode)
+    }
+    append(&spritesToDraw, UI_Sprite{sprite, rect, mode})
+}
+
+showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, mode: DrawMode, background: Color = rl.BLANK) {
+    if background != rl.BLANK {
+        showRect(rect, background, mode)
+    }
+    inlay_rect := subRectangle(rect, 1.0, 0.8, ALIGN_CENTER, ALIGN_CENTER)
+    append(&textToDraw, UI_Text{text, inlay_rect, color, align, mode})
+}
+
+showButton :: proc(rect: Rect, color: Color, mode: DrawMode, text: cstring = "") -> bool {
+    showText(rect, rl.GetColor(0xaaaaffff), text, ALIGN_LEFT, mode, color)
     return rl.CheckCollisionPointRec(mousePosition, rect)
 }
 
 updateState :: proc() {
+    did_something := false
     lastMousePostion := mousePosition
     mousePosition = rl.GetMousePosition()
     mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
 
     updateCamera()
     
-    if showButton({1280 - 164, 720 - 48, 164, 48},rl.GetColor(0x161616ff), "NEXT TURN") {
+    if showButton( 
+        subRectangle(windowRect, 0.36, 0.09, ALIGN_RIGHT, ALIGN_BOTTOM), 
+        rl.GetColor(0x161616ff), 
+        .UI,
+        "NEXT TURN",
+    ) {
         if rl.IsMouseButtonPressed(.LEFT) {
+            did_something = true
             nextTurn()
         }
     }
-
+    if selectedCity != nil {
+        showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
+    }
     worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / f32(tileSize)
     tileUnderMouse := getTile(i32(worldMouse.x), i32(worldMouse.y))
     if rl.IsMouseButtonPressed(.LEFT) && tileUnderMouse != nil {
-        createUnit(.VALET, 0, coordinate{i16(worldMouse.x), i16(worldMouse.y)})
+        // createUnit(UnitTypeManifest[0], 0,Coordinate{i16(worldMouse.x), i16(worldMouse.y)})
+        if selectedCity != nil && tileUnderMouse.owner == selectedCity {
+            candidate : ^Pop = nil
+            last_index := len(selectedCity.population) - 1
+            for &pop, index in selectedCity.population {
+                if pop.tile == tileUnderMouse && pop.state == .WORKING {
+                    pop.state = .UNEMPLOYED
+                    candidate = nil
+                    did_something = true
+                    break
+                }
+                if candidate == nil && (pop.state == .UNEMPLOYED || index ==  last_index) {
+                    candidate = &pop
+                }
+            }
+            if candidate != nil {
+                candidate.state = .WORKING
+                candidate.tile = tileUnderMouse
+                did_something = true
+            }
+        }
+        println(tileUnderMouse.terrain.name)
+        if !did_something { selectedCity = nil }
+        for &city in cities {
+            if tileUnderMouse == city.location {
+                selectedCity = &city
+            }
+        }
+        if len(tileUnderMouse.units) > 0 {
+            selectedUnit = tileUnderMouse.units[0]
+            println("selected a UNIT")
+        }
     }
     else if rl.IsMouseButtonPressed(.RIGHT) && tileUnderMouse != nil {
-        createCity(0, coordinate{i16(worldMouse.x), i16(worldMouse.y)})
+        createCity(playerFaction, tileUnderMouse)
     }
-    //println(tileUnderMouse)
+    showBorders()
+    showBanners()
 }
 
-createUnit :: proc(t: unitType, f: factionID, c: coordinate) {
-    newUnit := Unit{t, f, c}
-    unitEntered(newUnit, c)
-    append(&units, newUnit)
-    println("new unit: ", newUnit)
+getCityPopCost :: proc(c: City) -> f32 {
+    base := 10
+    mult := 5
+    return f32(base + len(c.population)*mult)
 }
 
-createCity :: proc(f: factionID, c: coordinate) {
-    newCity := City{f, 1.0, c, {c}}
-    append(&cities, newCity)
-    println("new city: ", newCity)
-}
-
-unitEntered :: proc(u: Unit, c: coordinate) {
+unitEntered :: proc(u: ^Unit, t: ^Tile) {
+    append(&t.units, u)
     visibility: i16 = 5
-    forTileInRadius(c, visibility, discover)
-    discover :: proc(t: []Tile) {
-        t[0].discovery_mask = 1
+    for tile in getTilesInRadius(t.coordinate, visibility) {
+        tile.discovery_mask = 1
     }
 }
 
-drawButtons :: proc() {
-    for button in buttons {
-        rl.DrawRectangleRec(button.rect, button.color)
-        textColor := rl.GetColor(0xaaaaffff)
-        fontSize: i32 = 24
-        textWidth := rl.MeasureText(button.text, fontSize)
-        textX := i32(button.rect.x) + (i32(button.rect.width) - textWidth)/2
-        textY := i32(button.rect.y) + (i32(button.rect.height) - fontSize)/2
-        rl.DrawText(button.text, textX, textY, fontSize, textColor)
+drawMapStuff :: proc() {
+    for rect in rectsToDraw {
+        if rect.mode == .MAP {
+            rl.DrawRectangleRec(rect.rect, rect.color)
+        }
     }
-    clear(&buttons)
+    for text in textToDraw {
+        if text.mode == .MAP {
+            drawText(text)
+        }
+    }
+    for sprite in spritesToDraw {
+        if sprite.mode == .MAP {
+            rl.DrawTextureEx(sprite.texture, Vector2{sprite.rect.x, sprite.rect.y}, 1.0, 0.5, rl.WHITE)
+        }
+    }
+
+    drawText :: proc(using t: UI_Text) {
+        fontSize := i32(t.rect.height)
+        textWidth := rl.MeasureText(text, fontSize)
+        x: i32
+        switch align {
+            case ALIGN_LEFT: x = i32(rect.x)
+            case ALIGN_CENTER: x = i32(rect.x) + (i32(rect.width) - textWidth)/2
+            case ALIGN_RIGHT: x = i32(rect.x) + (i32(rect.width) - textWidth)
+        }
+        y := i32(rect.y) + (i32(rect.height) - fontSize)/2
+        rl.DrawText(text, x, y, fontSize, color)
+    }
+
+    drawSprite  :: proc(using s: UI_Sprite) {
+        scale := min(rect.width/f32(texture.width), rect.height/f32(texture.height))
+        rl.DrawTextureEx(texture, Vector2{rect.x, rect.y}, 1.0, scale, rl.WHITE)
+    }
+}
+
+drawUI :: proc() {
+    for rect in rectsToDraw {
+        if rect.mode == .UI {
+            rl.DrawRectangleRec(rect.rect, rect.color)
+        }
+    }
+    for text in textToDraw {
+        if text.mode == .UI {
+            drawText(text)
+        }
+    }
+    for sprite in spritesToDraw {
+        if sprite.mode == .UI {
+            rl.DrawTextureEx(sprite.texture, Vector2{sprite.rect.x, sprite.rect.y}, 1.0, 0.5, rl.WHITE)
+        }
+    }
+    clear(&rectsToDraw)
+    clear(&textToDraw)
+    clear(&spritesToDraw)
+
+    drawText :: proc(using t: UI_Text) {
+        fontSize := i32(t.rect.height)
+        textWidth := rl.MeasureText(text, fontSize)
+        textX := i32(rect.x) + (i32(rect.width) - textWidth)/2
+        textY := i32(rect.y) + (i32(rect.height) - fontSize)/2
+        rl.DrawText(text, textX, textY, fontSize, color)
+    }
+
+    drawSprite  :: proc(using s: UI_Sprite) {
+        scale := min(rect.width/f32(texture.width), rect.height/f32(texture.height))
+        rl.DrawTextureEx(texture, Vector2{rect.x, rect.y}, 1.0, scale, rl.WHITE)
+    }
+}
+
+showBorders :: proc() {
+    for faction in factions {
+        for city in faction.cities {
+            for tile in city.tiles {
+                showRect(getTileRect(tile), rl.Color{0,0,0,80}, .MAP)
+            }
+        }
+    }
+}
+
+drawPops :: proc() {
+    for faction in factions {
+        for city in faction.cities {
+            for pop in city.population {
+                rect := getTileRect(pop.tile)
+                transparent :: Color{255,255,255,128}
+                tint := pop.state == .WORKING ? rl.WHITE : transparent
+                rl.DrawTextureEx(textures.pop, Vector2{rect.x, rect.y}, 0.0, 0.5,  tint)
+            }
+        }
+    }
 }
 
 renderState :: proc() {
@@ -351,36 +606,13 @@ renderState :: proc() {
     rl.BeginMode2D(cam)
     rl.ClearBackground(rl.GetColor(0x181818ff))
     drawMap()
-    drawBanners()
+    drawMapStuff()
+    drawPops()
+    // rl.EndMode2D()
+    // rl.BeginMode2D(camNoZoom)
     rl.EndMode2D()
-    drawButtons()
+    drawUI()
     rl.EndDrawing()
-}
-
-rebuildCache :: proc(db: ^sqlite.DataBase) {
-    //println("WARNING: cache invalidation not yet implemented")
-    dir, err := os.open("sqlite/SQL")
-    defer os.close(dir)
-    if err != {} {
-        println("f1")
-    }
-    instructions: []FileInfo
-    instructions, err = os.read_dir(dir, 128)
-    defer os.file_info_slice_delete(instructions)
-    if err != {} {
-        println("f2")
-    }
-    
-    for inst in instructions {
-        sql, success := os.read_entire_file(inst.fullpath)
-        if !success {
-            println("failed to read sql file ", inst.fullpath)
-        }
-        error_message: cstring
-        if sqlite.exec(db, cstring(raw_data(sql)), nil, nil, &error_message) != 0 {
-            println(error_message)
-        }
-    }
 }
 
 main :: proc() {
@@ -398,26 +630,28 @@ main :: proc() {
     defer sqlite.close(db)
 
     {
-        dir, err := os.open("sqlite/SQL")
-        defer os.close(dir)
+        sql_path := "sqlite/SQL"
+        dir, err := os.open(sql_path)
         if err != {} {
-            println("f3")
+            panic("")
         }
+        defer os.close(dir)
 
         fi: FileInfo
         fi, err = os.stat("sqlite/game.db")
         if err != {} {
-            println("f4")
+            panic("")
         }
         cache_mod_time := fi.modification_time
         os.file_info_delete(fi)
         
         instructions: []FileInfo
         instructions, err = os.read_dir(dir, 128)
-        defer os.file_info_slice_delete(instructions)
         if err != {} {
-            println("f5")
+            println("error reading directory", sql_path, os.error_string(err))
+            panic("")
         }
+        defer os.file_info_slice_delete(instructions)
         
         for inst in instructions {
             if time.diff(inst.modification_time, cache_mod_time) <= 0 {
@@ -425,30 +659,59 @@ main :: proc() {
                 sqlite.exec(db, "VACUUM", nil, nil, nil)
                 sqlite.db_config(db, .RESET_DATABASE, 0, 0)
                 rebuildCache(db)
-                break;
+                break
             }
         }
     }
-
+    generateTerrainManifest(db)
     mapDimensions = {36, 36}
     cam = {windowDimensions/2.0, Vector2{f32(mapDimensions.x*tileSize/2), f32(mapDimensions.y*tileSize/2)}, 0.0, 1.0}
+    camNoZoom = cam
     println(cam.target)
+    
+    player := Faction {
+        id = 0,
+        cities = {},
+        units = {},
+        gold = 0.0,
+    }
+    append(&factions, player)
+    playerFaction = &factions[0]
+    
     gameMap = make([dynamic]Tile, mapDimensions.x * mapDimensions.y)
     generateMap()
-    
-    append(&factions, Faction{cities = {}, units = {}})
-    
+
     rl.SetConfigFlags(rl.ConfigFlags{.VSYNC_HINT})
     rl.InitWindow(i32(windowDimensions.x), i32(windowDimensions.y), "ATom")
+    windowRect = Rect{0, 0, windowDimensions.x, windowDimensions.y}
     defer rl.CloseWindow()
 
     textures.city = rl.LoadTexture("Assets/Sprites/townsend.png")
     defer rl.UnloadTexture(textures.city)
-    textures.valet = rl.LoadTexture("Assets/Sprites/adude.png")
-    defer rl.UnloadTexture(textures.valet)
+    textures.pop = rl.LoadTexture("Assets/Sprites/pop.png")
+    defer rl.UnloadTexture(textures.pop)
+    generateUnitTypeManifest(db)
+    generateBuildingManifest(db)
+    syncProjectManifest()
     
     for !rl.WindowShouldClose() {
         updateState()
         renderState()
+        free_all(context.temp_allocator)
+    }
+    for unit_type in UnitTypeManifest {
+        rl.UnloadTexture(unit_type.texture)
+    }
+}
+
+syncProjectManifest :: proc() {
+    clear(&projectManifest)
+    for unit_type in UnitTypeManifest {
+        p: ProjectType = unit_type
+        append(&projectManifest, p)
+    }
+    for building_type in BuildingTypeManifest {
+        p: ProjectType = building_type
+        append(&projectManifest, p)
     }
 }

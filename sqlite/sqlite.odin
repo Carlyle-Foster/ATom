@@ -11,7 +11,7 @@ else {
 foreign sqlite {
     open            :: proc(path: cstring, db: ^^DataBase) -> int ---
     close           :: proc(db: ^DataBase) -> int ---
-    exec            :: proc(db: ^DataBase, query: cstring, callback: (proc(rawptr, int, ^cstring, ^cstring) -> int), start_value: rawptr, error_msg: ^cstring) -> int ---
+    exec            :: proc(db: ^DataBase, query: cstring, callback: (proc "c" (rawptr, int, [^]cstring, [^]cstring) -> int), start_value: rawptr, error_msg: ^cstring) -> int ---
     errmsg          :: proc(db: ^DataBase) -> cstring ---
     free            :: proc(memory: rawptr) ---
     //TODO: properly bind C-style varidic args
