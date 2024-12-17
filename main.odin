@@ -198,6 +198,14 @@ UI_Sprite :: struct {
     mode: DrawMode,
 }
 
+Buttons: [dynamic]UI_Button = {}
+
+UI_Button :: struct {
+    rect: Rect,
+    was_pressed: ^bool,
+    mode: DrawMode,
+}
+
 generateMap :: proc() {
     offCenter := 0.0
     radius := 0.0
@@ -241,10 +249,11 @@ drawMap :: proc() {
 }
 
 showBanners :: proc() {
-    for city in cities {
-        showBanner(city)
+    for &city, index in cities {
+        showBanner(&city, index)
     }
-    showBanner :: proc(using city : City) {
+    @(static) ps :[128]bool = {}
+    showBanner :: proc(using city : ^City, index: int) {
         scale := 1.0 / cam.zoom
         lift := i32(20.0*scale)
         x: i32 = i32(location.coordinate.x)*tileSize + tileSize/2
@@ -252,7 +261,11 @@ showBanners :: proc() {
         width := i32(128.0*scale)
         height := i32(32.0*scale)
         rect := Rect{f32(x - width/2), f32(y), f32(width), f32(height)}
-        showRect(rect, rl.GetColor(0xaa2299bb), .MAP)
+        if showButton(rect, rl.GetColor(0xaa2299bb), &ps[index], .MAP) {
+            if rl.IsMouseButtonPressed(.LEFT) {
+                selectedCity = city
+            }
+        }
         pop_rect := chopRectangle(&rect, rect.width/4, .LEFT)
         showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT, .MAP)
         builder := strings.builder_make()
@@ -273,7 +286,9 @@ showSidebar :: proc(r: Rect) {
     entry_size := r.height/5
     showRect(title_rect, rl.GetColor(0x992465ff), .UI)
     showText(title_rect, rl.GetColor(0x229f54ff), text, ALIGN_CENTER, .UI)
-    for project in projectManifest {
+    @(static) ps: [64]bool = {}
+    assert(len(ps) >= len(projectManifest))
+    for project, index in projectManifest {
         name: cstring 
         texture: rl.Texture  
         switch type in project {
@@ -287,11 +302,32 @@ showSidebar :: proc(r: Rect) {
             }
         }
         entry_rect := chopRectangle(&r, entry_size, .TOP)
-        if showButton(entry_rect, rl.PURPLE, .UI) {
+        if showButton(entry_rect, rl.PURPLE, &ps[index], .UI) {
             if rl.IsMouseButtonPressed(.LEFT) {
                 selectedCity.project = project
+                selectedCity = nil
             }
         }
+        sprite_rect := chopRectangle(&entry_rect, f32(texture.width/2), .LEFT)
+        showSprite(sprite_rect, texture, .UI)
+        entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
+        showRect(entry_rect, rl.GetColor(0x18181899), .UI)
+        entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
+        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, .UI, rl.GOLD)
+    }
+}
+
+showSidebar2 :: proc(r: Rect) {
+    r := r
+    padding :: 1.45
+    assert(selectedCity != nil)
+
+    entry_size := r.height/5
+    for building in selectedCity.buildings {
+        name := building.type.name
+        texture := building.type.texture
+        entry_rect := chopRectangle(&r, entry_size, .TOP)
+        showRect(entry_rect, rl.PURPLE,  .UI)
         sprite_rect := chopRectangle(&entry_rect, f32(texture.width/2), .LEFT)
         showSprite(sprite_rect, texture, .UI)
         entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
@@ -424,37 +460,71 @@ showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, mode
     append(&textToDraw, UI_Text{text, inlay_rect, color, align, mode})
 }
 
-showButton :: proc(rect: Rect, color: Color, mode: DrawMode, text: cstring = "") -> bool {
+showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode, text: cstring = "") -> bool {
+    v := was_pressed^
+    was_pressed^ = false
     showText(rect, rl.GetColor(0xaaaaffff), text, ALIGN_LEFT, mode, color)
-    return rl.CheckCollisionPointRec(mousePosition, rect)
+    append(&Buttons, UI_Button{rect, was_pressed, mode})
+    return v
 }
 
 updateState :: proc() {
-    did_something := false
+    @(static) needs_inspection := false
+    if needs_inspection {
+        inspectCities()
+        needs_inspection = false
+    }
     lastMousePostion := mousePosition
     mousePosition = rl.GetMousePosition()
     mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
 
+    lucky_contestant: ^bool = nil
+    for button in Buttons {
+        switch button.mode {
+            case .MAP: {
+                if rl.CheckCollisionPointRec(rl.GetScreenToWorld2D(mousePosition, cam), button.rect) {
+                    lucky_contestant = button.was_pressed
+                }
+            }
+            case .UI: {
+                if rl.CheckCollisionPointRec(mousePosition, button.rect) {
+                    lucky_contestant = button.was_pressed
+                }
+            }
+        }
+    }
+    if lucky_contestant != nil {
+        lucky_contestant^ = true
+    }
+    clear(&Buttons)
+    
+    @(static) p2 := false
+    append(&Buttons, UI_Button{windowRect, &p2, .UI})
+
     updateCamera()
     
+    @(static) p1 := false
     if showButton( 
         subRectangle(windowRect, 0.36, 0.09, ALIGN_RIGHT, ALIGN_BOTTOM), 
         rl.GetColor(0x161616ff), 
+        &p1,
         .UI,
         "NEXT TURN",
     ) {
         if rl.IsMouseButtonPressed(.LEFT) {
-            did_something = true
             nextTurn()
         }
     }
     if selectedCity != nil {
         showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
     }
+    if selectedCity != nil {
+        showSidebar2(subRectangle(windowRect, 0.2, 0.6, ALIGN_RIGHT, ALIGN_CENTER))
+    }
     worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / f32(tileSize)
     tileUnderMouse := getTile(i32(worldMouse.x), i32(worldMouse.y))
-    if rl.IsMouseButtonPressed(.LEFT) && tileUnderMouse != nil {
-        // createUnit(UnitTypeManifest[0], 0,Coordinate{i16(worldMouse.x), i16(worldMouse.y)})
+    if p2 && rl.IsMouseButtonPressed(.LEFT) && tileUnderMouse != nil {
+        click_consumed := false
         if selectedCity != nil && tileUnderMouse.owner == selectedCity {
             candidate : ^Pop = nil
             last_index := len(selectedCity.population) - 1
@@ -462,7 +532,7 @@ updateState :: proc() {
                 if pop.tile == tileUnderMouse && pop.state == .WORKING {
                     pop.state = .UNEMPLOYED
                     candidate = nil
-                    did_something = true
+                    click_consumed = true
                     break
                 }
                 if candidate == nil && (pop.state == .UNEMPLOYED || index ==  last_index) {
@@ -472,26 +542,33 @@ updateState :: proc() {
             if candidate != nil {
                 candidate.state = .WORKING
                 candidate.tile = tileUnderMouse
-                did_something = true
-            }
-        }
-        println(tileUnderMouse.terrain.name)
-        if !did_something { selectedCity = nil }
-        for &city in cities {
-            if tileUnderMouse == city.location {
-                selectedCity = &city
+                click_consumed = true
             }
         }
         if len(tileUnderMouse.units) > 0 {
             selectedUnit = tileUnderMouse.units[0]
-            println("selected a UNIT")
+            selectedCity = nil
+            click_consumed = true
+            println("selected unit:", tileUnderMouse.units[0])
+        }
+        for &city in cities {
+            if tileUnderMouse == city.location {
+                selectedCity = &city
+                click_consumed = true
+            }
+        }
+        if !click_consumed {
+            selectedCity = nil
+            selectedUnit = nil
         }
     }
     else if rl.IsMouseButtonPressed(.RIGHT) && tileUnderMouse != nil {
         createCity(playerFaction, tileUnderMouse)
+        inspectCities()
     }
     showBorders()
     showBanners()
+    p2 = false
 }
 
 getCityPopCost :: proc(c: City) -> f32 {
@@ -581,7 +658,9 @@ drawUI :: proc() {
 showBorders :: proc() {
     for faction in factions {
         for city in faction.cities {
+            assert(city.tiles != nil, "city tiles pointer was nil")
             for tile in city.tiles {
+                assert(tile != nil, "tile pointer was nil")
                 showRect(getTileRect(tile), rl.Color{0,0,0,80}, .MAP)
             }
         }
@@ -669,10 +748,13 @@ main :: proc() {
     camNoZoom = cam
     println(cam.target)
     
+    cities = make([dynamic]City, 0, 1024*2)
+    units = make([dynamic]Unit, 0, 1024*8)
+    factions = make([dynamic]Faction, 0, 128)
     player := Faction {
         id = 0,
-        cities = {},
-        units = {},
+        cities = make([dynamic]^City, 0, 1024*1),
+        units = make([dynamic]^Unit, 0, 1024*4),
         gold = 0.0,
     }
     append(&factions, player)

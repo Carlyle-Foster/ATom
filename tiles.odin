@@ -53,12 +53,13 @@ claimTile :: proc(c: ^City, t: ^Tile) {
 getTile :: proc{getTileByCoordinates, getTileDestructured}
 
 getTileRect :: proc(t: ^Tile) -> Rect {
-    return Rect {
+    r := Rect {
         x = f32(i32(t.coordinate.x) * tileSize),
         y = f32(i32(t.coordinate.y) * tileSize),
         width = f32(tileSize),
         height = f32(tileSize),
     }
+    return r
 }
 
 getTilesInRadius :: proc(center: Coordinate, range: i16) -> [dynamic]^Tile {

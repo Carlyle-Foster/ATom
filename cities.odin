@@ -1,5 +1,7 @@
 package ATom
 
+import "core:strings"
+
 import rl "vendor:raylib"
 
 City :: struct {
@@ -17,7 +19,7 @@ City :: struct {
 
 createCity :: proc(f: ^Faction, t: ^Tile) -> ^City {
     append(&cities, City{
-        name = "delhi", 
+        name = getNextCityName(), 
         owner = f, 
         destroyed = false, 
         population = {new_pop(t)}, 
@@ -28,11 +30,35 @@ createCity :: proc(f: ^Faction, t: ^Tile) -> ^City {
         tiles = {},
     })
     city := &cities[len(cities) - 1]
+    // println("len(cities)-1 =", len(cities)-1)
+    // println(city.population)
     append(&f.cities, city)
     for tile in getTilesInRadius(t.coordinate, 1) {
         claimTile(city, tile)
     }
     return city
+}
+
+inspectCities :: proc() {
+    if (len(cities)-1) == 8 {
+        for city in factions[0].cities {
+            println(city.name)
+            println(city.population[0])
+            for tile in city.tiles {
+                println(tile)
+                assert(tile != nil,"tile was nil!")
+            }
+        }
+    }
+}
+
+getNextCityName :: proc() -> cstring {
+    @(static) count  := 1
+    builder := strings.Builder{}
+    strings.write_int(&builder, count)
+    count += 1
+    println("asfh", count)
+    return strings.to_cstring(&builder)
 }
 
 drawCities :: proc() {
