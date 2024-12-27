@@ -1,7 +1,5 @@
 package ATom
 
-import "core:log"
-
 import rl "vendor:raylib"
 
 City :: struct {
@@ -78,8 +76,6 @@ windowRect: Rect = {}
 
 tileSize: i32 = 64
 
-POP_DIET: f32 = 2.0
-
 cam: rl.Camera2D = {}
 camNoZoom: rl.Camera2D = {}
 mousePosition := Vector2{}
@@ -123,15 +119,6 @@ Pop :: struct {
     tile: ^Tile,
 }
 
-new_pop :: proc(c: ^City) -> Pop {
-    return Pop{.UNEMPLOYED, c.location}
-}
-
-employPop :: proc(p: ^Pop, t: ^Tile) {
-    p.tile = t
-    p.state = .WORKING
-}
-
 TerrainManifest : [dynamic]Terrain = {}
 UnitTypeManifest : [dynamic]UnitType = {}
 BuildingTypeManifest: [dynamic]BuildingType = {}
@@ -169,20 +156,6 @@ Building :: struct {
 ProjectType :: union {
     UnitType,
     BuildingType,
-}
-
-getProjectCost :: proc(p: ProjectType) -> i32 {
-    switch type in p {
-        case UnitType: {
-            return type.cost
-        }
-        case BuildingType: {
-            return type.cost
-        }
-        case: {
-            log.panic()
-        }
-    }
 }
 
 Faction :: struct {

@@ -11,8 +11,10 @@ import ui "../ui"
 import city "../cities"
 import unit "../units"
 import tile "../tiles"
+import pop "../pops"
 import faction "../factions"
 import render "../rendering" 
+import project "../projects"
 import database "../database"
 
 Faction :: shared.Faction
@@ -44,7 +46,7 @@ start :: proc() {
     defer rl.CloseWindow()
 
     database.generateManifests(db)
-    syncProjectManifest()
+    project.syncManifest()
     defer unloadAssets()
 
     faction.generateFactions(3)
@@ -61,14 +63,10 @@ start :: proc() {
     
     
     for !rl.WindowShouldClose() {
-        doFrame()
+        updateState()
+        renderState()
+        free_all(context.temp_allocator)
     }
-}
-
-doFrame :: proc() {
-    updateState()
-    renderState()
-    free_all(context.temp_allocator)
 }
 
 updateState :: proc() {
@@ -122,7 +120,7 @@ updateState :: proc() {
                 }
             }
             if candidate != nil {
-                employPop(candidate, tileUnderMouse)
+                pop.employ(candidate, tileUnderMouse)
                 click_consumed = true
             }
         }
@@ -230,20 +228,6 @@ unloadAssets :: proc() {
     }
     for building_type in BuildingTypeManifest {
         rl.UnloadTexture(building_type.texture)
-    }
-}
-
-syncProjectManifest :: proc() {
-    using shared
-
-    clear(&projectManifest)
-    for unit_type in UnitTypeManifest {
-        p: ProjectType = unit_type
-        append(&projectManifest, p)
-    }
-    for building_type in BuildingTypeManifest {
-        p: ProjectType = building_type
-        append(&projectManifest, p)
     }
 }
 

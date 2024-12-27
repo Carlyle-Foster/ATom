@@ -8,6 +8,8 @@ import rl "vendor:raylib"
 import shared "../shared"
 import unit "../units"
 import tile "../tiles"
+import pop "../pops"
+import project "../projects"
 
 City :: shared.City
 BuildingType :: shared.BuildingType
@@ -36,7 +38,7 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
         tile.claim(city, tl)
     }
     t.flags += { .CONTAINS_CITY }
-    city.population = { new_pop(city) }
+    city.population = { pop.create(city) }
     return city
 }
 
@@ -67,11 +69,11 @@ update :: proc(c: ^City) {
     yields: [YieldType]f32
     multipliers: [YieldType]f32 = {.FOOD=1, .PRODUCTION=1, .SCIENCE=1, .GOLD=1}
     yields += c.location.terrain.yields
-    for pop in c.population {
-        if pop.state == .WORKING {
-            yields += pop.tile.terrain.yields
+    for p in c.population {
+        if p.state == .WORKING {
+            yields += p.tile.terrain.yields
         }
-        yields[.FOOD] -= POP_DIET 
+        yields[.FOOD] -= pop.DIET
     }
     for building in c.buildings {
         yields += building.type.yields
@@ -86,12 +88,12 @@ update :: proc(c: ^City) {
     c.owner.gold += f32(yields[.GOLD])
     pop_cost := getPopCost(c^)
     for c.growth >= pop_cost {
-        append(&c.population, new_pop(c))
+        append(&c.population, pop.create(c))
         c.growth -= pop_cost
         pop_cost = getPopCost(c^)
     }
     if c.project != nil {
-        project_cost := f32(getProjectCost(c.project))
+        project_cost := f32(project.getCost(c.project))
         if c.hammers >= project_cost {
             switch type in c.project {
                 case UnitType: unit.create(type,  c.owner, c.location)

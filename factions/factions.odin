@@ -7,6 +7,7 @@ import shared "../shared"
 import city "../cities"
 import unit "../units"
 import tile "../tiles"
+import pop "../pops"
 
 Faction :: shared.Faction
 
@@ -51,9 +52,9 @@ doAiTurn :: proc(f: ^Faction) {
     }
     for city in f.cities {
         i := 0
-        for &pop in city.population {
-            if pop.state == .UNEMPLOYED && i < len(city.tiles) {
-                employPop(&pop, city.tiles[i])
+        for &p in city.population {
+            if p.state == .UNEMPLOYED && i < len(city.tiles) {
+                pop.employ(&p, city.tiles[i])
             }
             i += 1
         }
