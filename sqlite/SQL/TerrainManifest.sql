@@ -4,13 +4,13 @@ CREATE TABLE "Terrain" (
 	"Production"    INTEGER,
 	"Science"	    INTEGER,
 	"Gold"	        INTEGER,
-	"Gate"	        INTEGER,
+	"MovementType"	TEXT,
 	"hue"			INTEGER,
 	PRIMARY KEY("Name")
 );
 
-INSERT INTO "Terrain" (Name, Food, Production, Science, Gold, Gate, hue)
+INSERT INTO "Terrain" (Name, Food, Production, Science, Gold, MovementType, hue)
 VALUES
-("Desert", 0, 1, 0, 1, 1, 70),
-("Rainforest", 2, 0, 1, 1, 1, 120),
-("Shallows", 1, 0, 1, 0, 0, 210);
+("Desert", 0, 1, 0, 1, "land", 70),
+("Rainforest", 2, 0, 1, 1, "land", 120),
+("Shallows", 1, 0, 1, 0, "coast", 210);

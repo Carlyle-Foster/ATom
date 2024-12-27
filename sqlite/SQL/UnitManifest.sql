@@ -3,11 +3,12 @@ CREATE TABLE "Units" (
 	"Texture"	    TEXT,
 	"Strength"	    INTEGER,
 	"Defense"	    INTEGER,
+	"MovementType"	TEXT,
 	"Cost"          INTEGER,
 	PRIMARY KEY("Name")
 );
 
-INSERT INTO "Units" (Name, Texture, Strength, Defense, Cost)
+INSERT INTO "Units" (Name, Texture, Strength, Defense, MovementType, Cost)
 VALUES
-("valet", "Assets/Sprites/adude.png", 6, 10, 16),
-("parking_pass", "Assets/Sprites/adude.png", 6, 10, 16);
+("Valet", "Assets/Sprites/adude.png", 6, 10, "land", 16),
+("Galley", "Assets/Sprites/Galley.png", 6, 10, "shoreline", 16);

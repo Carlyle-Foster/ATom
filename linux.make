@@ -8,7 +8,7 @@ RAYLIB=$(shell odin root)vendor/raylib/linux/libraylib.a
 all: Build/Debug/ATom
 	./$<
 
-Build/Debug/ATom: main.odin cities.odin database.odin tiles.odin units.odin sqlite/sqlite.odin Build/Cache/sqlite.a $(RAYLIB)
+Build/Debug/ATom: first.odin cities/cities.odin database/database.odin tiles/tiles.odin units/units.odin ui/ui.odin pathing/pathing.odin sqlite/sqlite.odin Build/Cache/sqlite.a $(RAYLIB)
 	odin build . -out:$@ -debug
 
 Build/Cache/sqlite.a: sqlite/sqlite3.c

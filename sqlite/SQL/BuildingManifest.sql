@@ -16,13 +16,13 @@ CREATE TABLE "Buildings" (
 INSERT INTO "Buildings" (Name, Texture, Food, Production, Science, Gold, Food_mult, Production_mult, Science_mult, Gold_mult, cost)
 VALUES
 (
-    "Bakery", "Assets/Sprites/Library.png",
+    "Bakery", "Assets/Sprites/bakery1.png",
     2, 0, 0, 0, 
     0, 0, 0, 0.10,
     10
 ),
 (
-    "Forge", "Assets/Sprites/Library.png",
+    "Forge", "Assets/Sprites/Forge.png",
     0, 2, 0, 0, 
     0, 0, 0, 0,
     10

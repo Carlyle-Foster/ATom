@@ -17,7 +17,7 @@ RAYLIB=$(shell odin root)vendor\raylib\windows\raylib.lib
 all: Build\Debug\ATom.exe
 	$<
 
-Build\Debug\ATom.exe: main.odin cities.odin database.odin tiles.odin units.odin sqlite\sqlite.odin Build\Cache\sqlite.lib $(RAYLIB)
+Build\Debug\ATom.exe: first.odin cities/cities.odin database/database.odin tiles/tiles.odin units/units.odin ui/ui.odin pathing/pathing.odin sqlite/sqlite.odin Build/Cache/sqlite.lib $(RAYLIB)
 	odin build . -out:$@ -target:windows_amd64 -debug
 
 Build\Cache\sqlite.lib: Build\Cache\sqlite.obj
