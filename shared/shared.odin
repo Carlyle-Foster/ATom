@@ -1,5 +1,7 @@
 package ATom
 
+import "core:encoding/json"
+
 import rl "vendor:raylib"
 
 uiState :: enum {
@@ -179,7 +181,7 @@ Technology :: struct {
     projects: [dynamic]ProjectType,
     cost: int,
 }
-MAX_TECHS :: 128
+MAX_TECHS :: 64
 
 Faction :: struct {
     type: FactionType,
@@ -196,4 +198,12 @@ FactionType :: struct {
     name: cstring,
     primary_color: rl.Color,
     secondary_color: rl.Color,
+}
+
+JsonDecree :: json.Marshal_Options {
+    spec = .MJSON,
+    pretty = true,
+    mjson_keys_use_equal_sign = true,
+    use_enum_names = true,
+    write_uint_as_hex = false,
 }

@@ -2,7 +2,6 @@ package game
 
 import "core:log"
 import "core:time"
-import "core:math"
 
 import rl "vendor:raylib"
 

@@ -1,0 +1,107 @@
+[
+	{
+		type = {
+			name = "Rome"
+			primary_color = [
+				200
+				122
+				255
+				255
+			]
+			secondary_color = [
+				255
+				203
+				0
+				255
+			]
+		}
+		id = 0
+		cities = [
+
+		]
+		units = [
+
+		]
+		gold = 0.00000000
+		science = 0.00000000
+		techs = 0
+		research_project = {
+			id = 0
+			name = ""
+			projects = [
+
+			]
+			cost = 0
+		}
+	}
+	{
+		type = {
+			name = "Delhi"
+			primary_color = [
+				0
+				121
+				241
+				255
+			]
+			secondary_color = [
+				112
+				31
+				126
+				255
+			]
+		}
+		id = 1
+		cities = [
+
+		]
+		units = [
+
+		]
+		gold = 0.00000000
+		science = 0.00000000
+		techs = 0
+		research_project = {
+			id = 0
+			name = ""
+			projects = [
+
+			]
+			cost = 0
+		}
+	}
+	{
+		type = {
+			name = "Sparta"
+			primary_color = [
+				0
+				0
+				0
+				255
+			]
+			secondary_color = [
+				230
+				41
+				55
+				255
+			]
+		}
+		id = 2
+		cities = [
+
+		]
+		units = [
+
+		]
+		gold = 0.00000000
+		science = 0.00000000
+		techs = 0
+		research_project = {
+			id = 0
+			name = ""
+			projects = [
+
+			]
+			cost = 0
+		}
+	}
+]
