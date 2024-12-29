@@ -21,7 +21,7 @@ Tile :: shared.Tile
 create :: proc(f: ^Faction, t: ^Tile) -> ^City {
     using shared
 
-    append(&cities, City{
+    append(&game.cities, City{
         name = getNextName(f), 
         owner = f, 
         destroyed = false, 
@@ -32,7 +32,7 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
         location = t, 
         tiles = {},
     })
-    city := &cities[len(cities) - 1]
+    city := &game.cities[len(game.cities) - 1]
     append(&f.cities, city)
     for tl in tile.getInRadius(t, 1) {
         tile.claim(city, tl)
@@ -81,11 +81,14 @@ update :: proc(c: ^City) {
         yields += building.type.yields
         multipliers += building.type.multipliers
     }
-    yields[.PRODUCTION] += 2
+    yields[.PRODUCTION] += 2.0
+    yields[.SCIENCE] += f32(len(c.population))*1.0
     yields *= multipliers
     c.growth += f32(yields[.FOOD])
     c.hammers += f32(yields[.PRODUCTION])
     c.owner.gold += f32(yields[.GOLD])
+    c.owner.science += yields[.SCIENCE]
+    c.owner.science += f32(len(c.population))
     pop_cost := getPopCost(c^)
     for c.growth >= pop_cost {
         append(&c.population, citizen.create(c))

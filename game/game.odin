@@ -7,6 +7,7 @@ import "core:math"
 import rl "vendor:raylib"
 
 import shared "../shared"
+import world "../world"
 import ui "../ui"
 import city "../cities"
 import unit "../units"
@@ -17,6 +18,20 @@ import render "../rendering"
 import database "../database"
 
 Faction :: shared.Faction
+GameState :: shared.GameState
+
+initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> GameState {
+    using shared
+
+    factions := faction.generateFactions(number_of_factions)
+    return GameState {
+        world = world.initialize(map_width, map_height, TerrainManifest[0]),
+        factions = factions,
+        cities = make([dynamic]City, 0, 1024*2),
+        units = make([dynamic]Unit, 0, 1024*8),
+        playerFaction = &factions[0],
+    }
+}
 
 start :: proc() {
     using shared
@@ -28,22 +43,6 @@ start :: proc() {
 
     db := database.initialize("sqlite/SQL")
 
-    mapDimensions = {96, 64}
-    cam = {
-        offset = windowDimensions/2.0, 
-        target = Vector2{f32(mapDimensions.x)*tileSize/2, f32(mapDimensions.y)*tileSize/2}, 
-        rotation = 0.0, 
-        zoom = 1.0,
-    }
-    camNoZoom = cam
-    
-    cities = make([dynamic]City, 0, 1024*2)
-    units = make([dynamic]Unit, 0, 1024*8)
-    factions = make([dynamic]Faction, 0, 128)
-
-    
-    gameMap = make([dynamic]Tile, mapDimensions.x * mapDimensions.y)
-
     rl.SetTargetFPS(60)
     rl.SetConfigFlags(rl.ConfigFlags{ .WINDOW_RESIZABLE })
     rl.InitWindow(i32(windowDimensions.x), i32(windowDimensions.y), "ATom")
@@ -53,12 +52,25 @@ start :: proc() {
     database.generateManifests(db)
     defer unloadAssets()
 
-    faction.generateFactions(3)
-    playerFaction = &factions[0]
+    game = initializeState(
+        number_of_factions = 3,
+        map_width = 96, 
+        map_height = 64, 
+    )
+    world.generate()
+    for &t in game.world.tiles {
+        t.discovery_mask |= 1 << game.playerFaction.id
+    }
+
+    cam = {
+        offset = windowDimensions/2.0, 
+        target = Vector2{f32(game.world.dimensions.x)*tileSize/2, f32(game.world.dimensions.y)*tileSize/2}, 
+        rotation = 0.0, 
+        zoom = 1.0,
+    }
+    camNoZoom = cam
 
     log.debug(TechnologyManifest)
-
-    generateMap()
 
     initAudio()
 
@@ -70,7 +82,13 @@ start :: proc() {
     defer rl.UnloadTexture(textures.technology)
     
     for !rl.WindowShouldClose() {
-        updateState()
+        if rl.IsKeyPressed(.T) {
+            currentUIState = .TECH
+        }
+        if rl.IsKeyPressed(.M) {
+            currentUIState = .MAP
+        }
+        handleInput()
         renderState()
         free_all(context.temp_allocator)
     }
@@ -88,7 +106,7 @@ updateWindowSize :: proc() {
 
     defaultTileSize := window_height/8
     tileSize = defaultTileSize
-    map_space := f32(mapDimensions.x)*tileSize
+    map_space := game.world.dimensions.x*tileSize
     //too thorny
     speculative_x := cam.target.x*(tileSize/old_tile_size)
     cam_offset := abs(speculative_x - map_space/2)
@@ -102,7 +120,16 @@ updateWindowSize :: proc() {
     cam.target = cam.target*(tileSize/old_tile_size)
 }
 
-updateState :: proc() {
+handleInput :: proc() {
+    using shared
+
+    switch currentUIState {
+        case .MAP: handleInput_MAP()
+        case .TECH: handleInput_TECH()
+    }
+}
+
+handleInput_MAP :: proc() {
     using shared
 
     updateWindowSize()
@@ -136,7 +163,7 @@ updateState :: proc() {
             showCityUI()
         }
     }
-    worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / f32(tileSize)
+    worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / tileSize
     tileUnderMouse := tile.get(i32(worldMouse.x), i32(worldMouse.y))
     if p2 && rl.IsMouseButtonPressed(.LEFT) && tileUnderMouse != nil {
         click_consumed := false
@@ -181,12 +208,23 @@ updateState :: proc() {
             }
         }
         else {
-            city.create(playerFaction, tileUnderMouse)
+            city.create(game.playerFaction, tileUnderMouse)
         }
+    }
+    if rl.IsKeyPressed(.T) {
+        currentUIState = .TECH
     }
     ui.showBorders()
     ui.showBanners()
     p2 = false
+}
+
+handleInput_TECH :: proc() {
+    using shared
+
+    if rl.IsKeyPressed(.M) {
+        currentUIState = .MAP
+    }
 }
 
 renderState :: proc() {
@@ -214,7 +252,7 @@ renderState :: proc() {
 nextTurn :: proc() {
     using shared
 
-    for &city in playerFaction.cities {
+    for &city in game.playerFaction.cities {
         if city.project == nil {
             selectedCity = city
             return
@@ -222,14 +260,9 @@ nextTurn :: proc() {
     }
     log.info("turn")
 
-    for &f in factions {
-        for c in f.cities {
-            city.update(c)
-        }
-        for u in f.units {
-            unit.update(u)
-        }
-        if f.id != playerFaction.id {
+    for &f in game.factions {
+        faction.update(&f)
+        if f.id != game.playerFaction.id {
             faction.doAiTurn(&f)
         }
     }
@@ -273,7 +306,7 @@ updateCamera :: proc() {
 canCameraSeeOutside :: proc() -> bool {
     using shared
 
-    world_dimension := Vector2{f32(mapDimensions.x)*tileSize, f32(mapDimensions.y)*tileSize}
+    world_dimension := Vector2{f32(game.world.dimensions.x)*tileSize, f32(game.world.dimensions.y)*tileSize}
     real_window := windowDimensions / cam.zoom
     x_edge := min(cam.target.x, world_dimension.x - cam.target.x)
     y_edge := min(cam.target.y, world_dimension.y - cam.target.y)
@@ -287,32 +320,5 @@ unloadAssets :: proc() {
     }
     for building_type in BuildingTypeManifest {
         rl.UnloadTexture(building_type.texture)
-    }
-}
-
-generateMap :: proc() {
-    using shared
-
-    offCenter := 0.0
-    radius := 0.0
-    for y in 0..<mapDimensions.y {
-        for x in 0..<mapDimensions.x {
-            offCenter   =   math.abs(f64(x)/f64(mapDimensions.x) - 0.5)*2.0
-            radius      =   math.sin(f64(y) / f64(mapDimensions.y) * math.PI)
-            //fmt.println("offCentre: ", offCenter, "radius: ", radius)
-            c := Coordinate{i16(x),i16(y)}
-            if radius > offCenter {
-                r := rl.GetRandomValue(0, 24)
-                if r == 0 {
-                    tile.get(c)^  = tile.create(c, TerrainManifest[0], .PEARLS)
-                }
-                else {
-                    tile.get(c)^  = tile.create(c, TerrainManifest[1], .PLATINUM)
-                }
-            }
-            else {
-                tile.get(c)^ = tile.create(c, TerrainManifest[2], .PLATINUM)
-            }
-        }
     }
 }

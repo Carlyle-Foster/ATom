@@ -109,6 +109,7 @@ showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode,
 
 showBanners :: proc() {
     using shared
+    using game
 
     for &city, index in cities {
         if !city.destroyed {
@@ -215,7 +216,7 @@ showSidebar2 :: proc(r: Rect) {
 showBorders :: proc() {
     using shared
 
-    for faction in factions {
+    for faction in game.factions {
         for city in faction.cities {
             assert(city.tiles != nil, "city tiles pointer was nil")
             for tl in city.tiles {

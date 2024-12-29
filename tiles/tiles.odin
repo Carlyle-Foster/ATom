@@ -21,14 +21,13 @@ Flags :: shared.TileFlags
 create :: proc(coordinate: Coordinate, terrain: Terrain, resource: ResourceType) -> Tile {
     using shared
 
-    assert(playerFaction != nil)
     return Tile {
         coordinate = coordinate, 
         terrain = terrain, 
         resource = resource, 
         owner = nil, 
         units = nil, 
-        discovery_mask = 1 << playerFaction.id, 
+        discovery_mask = 0, 
         visibility_mask = 0,
         flags = {},
     }
@@ -37,24 +36,24 @@ create :: proc(coordinate: Coordinate, terrain: Terrain, resource: ResourceType)
 getDestructured ::proc(x, y: i32) -> ^Tile {
     using shared
 
-    if (x < 0 || x >= mapDimensions.x) || (y < 0 || y >= mapDimensions.y) {
-        return {}
+    if (x < 0 || x >= i32(game.world.dimensions.x)) || (y < 0 || y >= i32(game.world.dimensions.y)) {
+        return nil
     }
     else {
-        location := x + y*mapDimensions.x
-        return &gameMap[location]
+        location := x + y*i32(game.world.dimensions.x)
+        return &game.world.tiles[location]
     }
 }
 
 getByCoordinates ::proc(c: Coordinate) -> ^Tile {
     using shared
 
-    if (c.x < 0 || c.x >= i16(mapDimensions.x)) || (c.y < 0 || c.y >= i16(mapDimensions.y)) {
+    if (c.x < 0 || c.x >= i16(game.world.dimensions.x)) || (c.y < 0 || c.y >= i16(game.world.dimensions.y)) {
         return {}
     }
     else {
-        location := i32(c.x) + i32(c.y)*mapDimensions.x
-        return &gameMap[location]
+        location := i32(c.x) + i32(c.y)*i32(game.world.dimensions.x)
+        return &game.world.tiles[location]
     }
 }
 
@@ -71,9 +70,10 @@ get :: proc{getByCoordinates, getDestructured}
 
 getRandom :: proc() -> ^Tile {
     using shared
+    using game
 
-    x := rand.int_max(int(mapDimensions.x))
-    y := rand.int_max(int(mapDimensions.y))
+    x := rand.int_max(int(game.world.dimensions.x))
+    y := rand.int_max(int(game.world.dimensions.y))
     log.debug(x, y)
     return get(i32(x), i32(y))
 }

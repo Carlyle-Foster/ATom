@@ -11,9 +11,10 @@ import pop "../pops"
 
 Faction :: shared.Faction
 
-generateFactions :: proc(faction_count: int) {
+generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
     using shared
 
+    factions: [dynamic]Faction = {}
     contenders: small_array.Small_Array(256, int)
     for i in 0..<len(factionTypeManifest) {
         small_array.append(&contenders, i)
@@ -35,6 +36,22 @@ generateFactions :: proc(faction_count: int) {
                 small_array.append(&contenders, i)
             }
         }
+    }
+    return factions
+}
+
+update :: proc(f: ^Faction) {
+    for c in f.cities {
+        city.update(c)
+    }
+    for u in f.units {
+        unit.update(u)
+    }
+    tech_cost := f32(f.research_project.cost)
+    if f.research_project.id != -1 && f.science >= tech_cost {
+        f.techs += { f.research_project.id }
+        f.science -= tech_cost
+        f.research_project.id = -1
     }
 }
 

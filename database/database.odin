@@ -16,6 +16,7 @@ import shared "../shared"
 import project "../projects"
 
 MovementType :: shared.MovementType
+MAX_TECHS :: shared.MAX_TECHS
 
 initialize :: proc(sql_path: string) -> ^sqlite.DataBase {
     db: ^sqlite.DataBase = nil
@@ -247,6 +248,7 @@ generateFactionManifest :: proc(db: ^sqlite.DataBase) {
 
 generateTechManifest :: proc(db: ^sqlite.DataBase) {
     generateManifestGeneric(db, "Technology", defineTech)
+    assert(len(shared.TechnologyManifest) <= MAX_TECHS)
     
     defineTech :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
         using shared

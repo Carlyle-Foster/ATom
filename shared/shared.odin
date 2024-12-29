@@ -8,6 +8,15 @@ uiState :: enum {
 }
 currentUIState := uiState.MAP
 
+GameState :: struct {
+    world: World,
+    factions: [dynamic]Faction,
+    cities: [dynamic]City,
+    units: [dynamic]Unit,
+    playerFaction: ^Faction,
+}
+game: GameState
+
 City :: struct {
     name: cstring,
     owner: ^Faction,
@@ -67,15 +76,6 @@ MovementType :: enum {
     CITY,
 }
 
-playerFaction: ^Faction = {}
-
-cities := [dynamic]City{}
-units := [dynamic]Unit{}
-factions := [dynamic]Faction{}
-
-mapDimensions: [2]i32
-gameMap: [dynamic]Tile
-
 windowDimensions := Vector2{1280, 720}
 
 windowRect: Rect = {}
@@ -127,6 +127,12 @@ Pop :: struct {
     tile: ^Tile,
 }
 
+World :: struct {
+    dimensions: Vector2,
+    tiles: [dynamic]Tile,
+    seed: i64,
+}
+
 TerrainManifest : [dynamic]Terrain = {}
 UnitTypeManifest : [dynamic]UnitType = {}
 BuildingTypeManifest: [dynamic]BuildingType = {}
@@ -173,6 +179,7 @@ Technology :: struct {
     projects: [dynamic]ProjectType,
     cost: int,
 }
+MAX_TECHS :: 128
 
 Faction :: struct {
     type: FactionType,
@@ -180,6 +187,9 @@ Faction :: struct {
     cities: [dynamic]^City,
     units:  [dynamic]^Unit,
     gold: f32,
+    science: f32,
+    techs: bit_set[0..<MAX_TECHS],
+    research_project: Technology,
 }
 
 FactionType :: struct {

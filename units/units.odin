@@ -19,8 +19,8 @@ Tile :: shared.Tile
 create :: proc(ut: UnitType, f: ^Faction, t: ^Tile) {
     using shared
 
-    append(&units, Unit{ut, f, t, {}})
-    new_unit := &units[len(units) - 1] 
+    append(&game.units, Unit{ut, f, t, {}})
+    new_unit := &game.units[len(game.units) - 1] 
     append(&f.units, new_unit)
     entered(new_unit, t)
     log.info("new unit: ", new_unit)
