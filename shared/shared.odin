@@ -2,6 +2,12 @@ package ATom
 
 import rl "vendor:raylib"
 
+uiState :: enum {
+    MAP,
+    TECH,
+}
+currentUIState := uiState.MAP
+
 City :: struct {
     name: cstring,
     owner: ^Faction,
@@ -70,11 +76,11 @@ factions := [dynamic]Faction{}
 mapDimensions: [2]i32
 gameMap: [dynamic]Tile
 
-windowDimensions :: Vector2{1280, 720}
+windowDimensions := Vector2{1280, 720}
 
 windowRect: Rect = {}
 
-tileSize: i32 = 64
+tileSize: f32 = 64
 
 cam: rl.Camera2D = {}
 camNoZoom: rl.Camera2D = {}
@@ -88,6 +94,7 @@ selectedUnit: ^Unit = {}
 Color :: rl.Color
 Vector2 :: rl.Vector2
 Rect :: rl.Rectangle
+Texture :: rl.Texture
 Coordinate :: [2]i16
 
 OrthogonalDirections :: [4]Coordinate{
@@ -99,9 +106,10 @@ OrthogonalDirections :: [4]Coordinate{
 
 textures: TextureManifest = {}
 TextureManifest :: struct {
-    city: rl.Texture,
-    valet: rl.Texture,
-    pop: rl.Texture,
+    city: Texture,
+    valet: Texture,
+    pop: Texture,
+    technology: Texture,
 }
 
 YieldType :: enum i8 {
@@ -124,6 +132,7 @@ UnitTypeManifest : [dynamic]UnitType = {}
 BuildingTypeManifest: [dynamic]BuildingType = {}
 projectManifest: [dynamic]ProjectType = {}
 factionTypeManifest: [dynamic]FactionType = {}
+TechnologyManifest: [dynamic]Technology = {}
 
 ResourceType :: enum i16 {
     NO_RESOURCE = -1,
@@ -156,6 +165,13 @@ Building :: struct {
 ProjectType :: union {
     UnitType,
     BuildingType,
+}
+
+Technology :: struct {
+    id: int,
+    name: cstring,
+    projects: [dynamic]ProjectType,
+    cost: int,
 }
 
 Faction :: struct {

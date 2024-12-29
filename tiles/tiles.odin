@@ -82,10 +82,10 @@ getRect :: proc(t: ^Tile) -> Rect {
     using shared
 
     r := Rect {
-        x = f32(i32(t.coordinate.x) * tileSize),
-        y = f32(i32(t.coordinate.y) * tileSize),
-        width = f32(tileSize),
-        height = f32(tileSize),
+        x = f32(t.coordinate.x) * tileSize,
+        y = f32(t.coordinate.y) * tileSize,
+        width = tileSize,
+        height = tileSize,
     }
     return r
 }

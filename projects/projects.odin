@@ -8,6 +8,8 @@ ProjectType :: shared.ProjectType
 UnitType :: shared.UnitType
 BuildingType :: shared.BuildingType
 
+Texture :: shared.Texture
+
 getCost :: proc(p: ProjectType) -> i32 {
     switch type in p {
         case UnitType: {
@@ -22,15 +24,31 @@ getCost :: proc(p: ProjectType) -> i32 {
     }
 }
 
-syncManifest :: proc() {
-    clear(&shared.projectManifest)
-    for unit_type in shared.UnitTypeManifest {
-        p: ProjectType = unit_type
-        append(&shared.projectManifest, p)
+getName :: proc(p: ProjectType) -> cstring {
+    switch type in p {
+        case UnitType: {
+            return type.name
+        }
+        case BuildingType: {
+            return type.name
+        }
+        case: {
+            log.panic()
+        }
     }
-    for building_type in shared.BuildingTypeManifest {
-        p: ProjectType = building_type
-        append(&shared.projectManifest, p)
+}
+
+getTexture :: proc(p: ProjectType) -> Texture {
+    switch type in p {
+        case UnitType: {
+            return type.texture
+        }
+        case BuildingType: {
+            return type.texture
+        }
+        case: {
+            log.panic()
+        }
     }
 }
 

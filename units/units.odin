@@ -28,7 +28,7 @@ create :: proc(ut: UnitType, f: ^Faction, t: ^Tile) {
 
 draw :: proc(using unit: Unit) {
     using shared
-    rl.DrawTextureEx(unit.type.texture, Vector2{f32(i32(tile.coordinate.x)*tileSize), f32(i32(tile.coordinate.y)*tileSize)}, 0.0, 0.5, rl.WHITE)
+    rl.DrawTextureEx(unit.type.texture, Vector2{f32(tile.coordinate.x)*tileSize, f32(tile.coordinate.y)*tileSize}, 0.0, 0.5, rl.WHITE)
 }
 
 update :: proc(u: ^Unit) {

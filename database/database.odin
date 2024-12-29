@@ -1,6 +1,7 @@
 package database
 
 import "core:log"
+import "core:fmt"
 import "base:runtime"
 import "core:strconv"
 import "core:strings"
@@ -12,6 +13,8 @@ import rl "vendor:raylib"
 import sqlite "../sqlite"
 
 import shared "../shared"
+import project "../projects"
+
 MovementType :: shared.MovementType
 
 initialize :: proc(sql_path: string) -> ^sqlite.DataBase {
@@ -24,7 +27,6 @@ initialize :: proc(sql_path: string) -> ^sqlite.DataBase {
     else {
         sqlite.open("sqlite/game.db", &db)
     }
-
     {
         dir, err := os.open(sql_path)
         if err != {} {
@@ -60,9 +62,7 @@ initialize :: proc(sql_path: string) -> ^sqlite.DataBase {
     }
 }
 
-close :: proc(db: ^sqlite.DataBase) {
-    sqlite.close(db)
-}
+close :: proc(db: ^sqlite.DataBase) { sqlite.close(db) }
 
 rebuildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
     dir, err := os.open(sql_path)
@@ -94,18 +94,25 @@ generateManifests :: proc(db: ^sqlite.DataBase) {
     generateFactionManifest(db)
     generateUnitTypeManifest(db)
     generateBuildingManifest(db)
+    generateTechManifest(db)
+}
+
+parser :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int
+
+generateManifestGeneric :: proc(db: ^sqlite.DataBase, table: cstring, p: parser) {
+    query := strings.clone_to_cstring(fmt.tprint("SELECT * FROM", table))
+    defer delete(query)
+    error_message: cstring
+    if sqlite.exec(db, query, p, nil, &error_message) != 0 {
+        log.panic(error_message)
+    }
 }
 
 generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
-    using shared
-
-    query : cstring = "SELECT * FROM  Terrain"
-    error_message: cstring
-    if sqlite.exec(db, query, defineTerrain, nil, &error_message) != 0 {
-        log.panic(error_message)
-    }
-
-    defineTerrain :: proc "c" (test: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+    generateManifestGeneric(db, "Terrain", defineTerrain)
+    
+    defineTerrain :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+        using shared
         using strconv
         context = runtime.default_context()
 
@@ -137,15 +144,10 @@ generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
 }
 
 generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
-    using shared
+    generateManifestGeneric(db, "Units", defineUnitType)
 
-    query : cstring = "SELECT * FROM  Units"
-    error_message: cstring
-    if sqlite.exec(db, query, defineUnitType, nil, &error_message) != 0 {
-        log.panic(error_message)
-    }
-
-    defineUnitType :: proc "c" (test: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+    defineUnitType :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+        using shared
         using strconv
         context = runtime.default_context()
 
@@ -157,27 +159,24 @@ generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
         habitat, ok3 := parseHabitat(string(values[4]))
         cost, ok4 := parse_int(string(values[5]))
         assert(ok1 && ok2 && ok3 && ok4)
-        append(&shared.UnitTypeManifest, UnitType{
-                name, 
-                texture,
-                i32(strength),
-                i32(defense), 
-                habitat,
-                i32(cost),
-            },
-        )
+        ut := UnitType{
+            name, 
+            texture,
+            i32(strength),
+            i32(defense), 
+            habitat,
+            i32(cost),
+        }
+        append(&shared.UnitTypeManifest, ut)
+        append(&shared.projectManifest, ProjectType(ut))
         return 0
     }
 }
 
 generateBuildingManifest :: proc(db: ^sqlite.DataBase) {
-    query : cstring = "SELECT * FROM  Buildings"
-    error_message: cstring
-    if sqlite.exec(db, query, defineBuilding, nil, &error_message) != 0 {
-        log.panic(error_message)
-    }
+    generateManifestGeneric(db, "Buildings", defineBuilding)
 
-    defineBuilding :: proc "c" (test: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+    defineBuilding :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
         using shared
         using strconv
         context = runtime.default_context()
@@ -208,28 +207,24 @@ generateBuildingManifest :: proc(db: ^sqlite.DataBase) {
             .GOLD = gold_mult,
         }
         log.debug(name)
-        append(&shared.BuildingTypeManifest, BuildingType {
-                name, 
-                texture, 
-                yields,
-                yield_mults, 
-                i32(cost),
-            },
-        )
+        bt := BuildingType {
+            name, 
+            texture, 
+            yields,
+            yield_mults, 
+            i32(cost),
+        }
+        append(&shared.BuildingTypeManifest, bt)
+        append(&shared.projectManifest, ProjectType(bt))
         return 0
     }
 }
 
 generateFactionManifest :: proc(db: ^sqlite.DataBase) {
-    using shared
-
-    query : cstring = "SELECT * FROM  Factions"
-    error_message: cstring
-    if sqlite.exec(db, query, defineFaction, nil, &error_message) != 0 {
-        log.panic(error_message)
-    }
-
-    defineFaction :: proc "c" (test: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+    generateManifestGeneric(db, "Factions", defineFaction)
+    
+    defineFaction :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+        using shared
         using strconv
         context = runtime.default_context()
 
@@ -246,6 +241,45 @@ generateFactionManifest :: proc(db: ^sqlite.DataBase) {
                 secondary_color,
             },
         )
+        return 0
+    }
+}
+
+generateTechManifest :: proc(db: ^sqlite.DataBase) {
+    generateManifestGeneric(db, "Technology", defineTech)
+    
+    defineTech :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
+        using shared
+        using strconv
+        context = runtime.default_context()
+
+        assert(rows == 3)
+        @(static) id := 0
+        name := strings.clone_to_cstring(string(values[0]))
+        unlocks_string := strings.to_lower(string(values[1]))
+        unlocks := make([dynamic]ProjectType)
+        for raw in strings.split(unlocks_string, ",") {
+            target_name := strings.to_lower(strings.trim(raw, " \r\n"))
+            for p in projectManifest {
+                project_name := strings.to_lower(string(project.getName(p)))
+                if project_name == target_name {
+                    append(&unlocks, p)
+                    break
+                }
+            }
+        }
+        cost, ok := parse_int(string(values[2]))
+
+        assert(ok)
+        log.debug(name)
+        append(&shared.TechnologyManifest, Technology {
+                id,
+                name,
+                unlocks,
+                cost,
+            },
+        )
+        id += 1
         return 0
     }
 }

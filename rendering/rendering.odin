@@ -23,7 +23,9 @@ gameMap :: proc() {
         }
     }
     for c in cities {
-        city.draw(c)
+        if !c.destroyed {
+            city.draw(c)
+        }
     }
     for u in units {
         unit.draw(u)

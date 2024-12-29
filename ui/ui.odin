@@ -8,6 +8,7 @@ import rl "vendor:raylib"
 
 import shared "../shared"
 import tile "../tiles"
+import tech "../technologies"
 
 Color :: rl.Color
 Vector2 :: rl.Vector2
@@ -99,7 +100,9 @@ showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, mode
 showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode, text: cstring = "") -> bool {
     v := was_pressed^
     was_pressed^ = false
-    showText(rect, rl.GetColor(0xaaaaffff), text, ALIGN_LEFT, mode, color)
+    showRect(rect, color, mode)
+    text_box := Rect{rect.x + rect.width/10, rect.y + rect.height/10, rect.width*0.8, rect.height*0.8}
+    showText(text_box, rl.GetColor(0xaaaaffff), text, ALIGN_LEFT, mode)
     append(&Buttons, UI_Button{rect, was_pressed, mode})
     return v
 }
@@ -108,17 +111,19 @@ showBanners :: proc() {
     using shared
 
     for &city, index in cities {
-        showBanner(&city, index)
+        if !city.destroyed {
+            showBanner(&city, index)
+        }
     }
     @(static) ps :[128]bool = {}
     showBanner :: proc(using city : ^City, index: int) {
         scale := 1.0 / cam.zoom
-        lift := i32(20.0*scale)
-        x: i32 = i32(location.coordinate.x)*tileSize + tileSize/2
-        y: i32 = i32(location.coordinate.y)*tileSize - lift 
-        width := i32(128.0*scale)
-        height := i32(32.0*scale)
-        rect := Rect{f32(x - width/2), f32(y), f32(width), f32(height)}
+        lift := 20.0*scale
+        x := f32(location.coordinate.x)*tileSize + tileSize/2
+        y := f32(location.coordinate.y)*tileSize - lift 
+        width := 128.0*scale
+        height := 32.0*scale
+        rect := Rect{x - width/2, y, width, height}
         if showButton(rect, rl.GetColor(0xaa2299bb), &ps[index], .MAP) {
             if rl.IsMouseButtonPressed(.LEFT) {
                 selectedCity = city
@@ -136,7 +141,7 @@ showBanners :: proc() {
 showCityUI :: proc() {
     using shared
 
-    showSidebar2(subRectangle(windowRect, 0.2, 0.6, ALIGN_RIGHT, ALIGN_CENTER))
+    showSidebar2(subRectangle(windowRect, 0.2, 0.8, ALIGN_RIGHT, ALIGN_CENTER))
     showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
 }
 
@@ -152,7 +157,8 @@ showSidebar :: proc(r: Rect) {
     title_rect := chopRectangle(&r, r.height/5.0, .TOP)
     entry_size := r.height/5
     showRect(title_rect, rl.GetColor(0x992465ff), .UI)
-    showText(title_rect, rl.GetColor(0x229f54ff), text, ALIGN_CENTER, .UI)
+    text_box := Rect{title_rect.x + title_rect.width/10, title_rect.y + title_rect.height/10, title_rect.width*0.8, title_rect.height*0.8}
+    showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER, .UI)
     @(static) ps: [64]bool = {}
     assert(len(ps) >= len(projectManifest))
     for project, index in projectManifest {
@@ -175,7 +181,7 @@ showSidebar :: proc(r: Rect) {
                 selectedCity = nil
             }
         }
-        sprite_rect := chopRectangle(&entry_rect, f32(texture.width/2), .LEFT)
+        sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
         showSprite(sprite_rect, texture, .UI)
         entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
         showRect(entry_rect, rl.GetColor(0x18181899), .UI)
@@ -195,9 +201,9 @@ showSidebar2 :: proc(r: Rect) {
     for building in selectedCity.buildings {
         name := building.type.name
         texture := building.type.texture
-        entry_rect := chopRectangle(&r, f32(texture.height/2), .TOP)
+        entry_rect := chopRectangle(&r, r.height/8, .TOP)
         showRect(entry_rect, rl.PURPLE,  .UI)
-        sprite_rect := chopRectangle(&entry_rect, f32(texture.width/2), .LEFT)
+        sprite_rect := chopRectangle(&entry_rect, r.width/3, .LEFT)
         showSprite(sprite_rect, texture, .UI)
         entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
         showRect(entry_rect, rl.GetColor(0x18181899), .UI)
@@ -320,21 +326,25 @@ drawMapStuff :: proc() {
     }
     for sprite in spritesToDraw {
         if sprite.mode == .MAP {
-            rl.DrawTextureEx(sprite.texture, Vector2{sprite.rect.x, sprite.rect.y}, 1.0, 0.5, rl.WHITE)
+            drawSprite(sprite)
         }
     }
 
     drawText :: proc(using t: UI_Text) {
-        fontSize := i32(t.rect.height)
-        textWidth := rl.MeasureText(text, fontSize)
+        font_size := i32(t.rect.height)
+        text_width := rl.MeasureText(text, font_size)
+        for text_width > i32(rect.width) {
+            font_size -= 1
+            text_width = rl.MeasureText(text, font_size)
+        }
         x: i32
         switch align {
             case ALIGN_LEFT: x = i32(rect.x)
-            case ALIGN_CENTER: x = i32(rect.x) + (i32(rect.width) - textWidth)/2
-            case ALIGN_RIGHT: x = i32(rect.x) + (i32(rect.width) - textWidth)
+            case ALIGN_CENTER: x = i32(rect.x) + (i32(rect.width) - text_width)/2
+            case ALIGN_RIGHT: x = i32(rect.x) + (i32(rect.width) - text_width)
         }
-        y := i32(rect.y) + (i32(rect.height) - fontSize)/2
-        rl.DrawText(text, x, y, fontSize, color)
+        y := i32(rect.y) + (i32(rect.height) - font_size)/2
+        rl.DrawText(text, x, y, font_size, color)
     }
 
     drawSprite  :: proc(using s: UI_Sprite) {
@@ -361,7 +371,7 @@ drawUI :: proc() {
     }
     for sprite in spritesToDraw {
         if sprite.mode == .UI {
-            rl.DrawTextureEx(sprite.texture, Vector2{sprite.rect.x, sprite.rect.y}, 1.0, 0.5, rl.WHITE)
+            drawSprite(sprite)
         }
     }
     clear(&rectsToDraw)
@@ -370,17 +380,30 @@ drawUI :: proc() {
     clear(&spritesToDraw)
 
     drawText :: proc(using t: UI_Text) {
-        fontSize := i32(t.rect.height)
-        textWidth := rl.MeasureText(text, fontSize)
-        textX := i32(rect.x) + (i32(rect.width) - textWidth)/2
-        textY := i32(rect.y) + (i32(rect.height) - fontSize)/2
-        rl.DrawText(text, textX, textY, fontSize, color)
+        font_size := i32(t.rect.height)
+        text_width := rl.MeasureText(text, font_size)
+        for text_width > i32(rect.width) && font_size != 0 {
+            font_size -= 1
+            text_width = rl.MeasureText(text, font_size)
+        }
+        textX := i32(rect.x) + (i32(rect.width) - text_width)/2
+        textY := i32(rect.y) + (i32(rect.height) - font_size)/2
+        rl.DrawText(text, textX, textY, font_size, color)
     }
 
     drawSprite  :: proc(using s: UI_Sprite) {
         scale := min(rect.width/f32(texture.width), rect.height/f32(texture.height))
         rl.DrawTextureEx(texture, Vector2{rect.x, rect.y}, 1.0, scale, rl.WHITE)
     }
+}
+
+drawTechScreen :: proc(r: Rect) {
+    using shared
+
+    length := f32(textures.technology.height)*r.width/r.height
+    source_rect := Rect{0, 0, length, f32(textures.technology.height)}
+    rl.DrawTexturePro(textures.technology, source_rect, windowRect, Vector2{0, 0}, 0, rl.GRAY)
+    tech.drawTree(windowRect)
 }
 
 findFocus :: proc(mouse_position: Vector2, cam: rl.Camera2D) {

@@ -14,7 +14,6 @@ import tile "../tiles"
 import pop "../pops"
 import faction "../factions"
 import render "../rendering" 
-import project "../projects"
 import database "../database"
 
 Faction :: shared.Faction
@@ -29,8 +28,13 @@ start :: proc() {
 
     db := database.initialize("sqlite/SQL")
 
-    mapDimensions = {36, 36}
-    cam = {windowDimensions/2.0, Vector2{f32(mapDimensions.x*tileSize/2), f32(mapDimensions.y*tileSize/2)}, 0.0, 1.0}
+    mapDimensions = {96, 64}
+    cam = {
+        offset = windowDimensions/2.0, 
+        target = Vector2{f32(mapDimensions.x)*tileSize/2, f32(mapDimensions.y)*tileSize/2}, 
+        rotation = 0.0, 
+        zoom = 1.0,
+    }
     camNoZoom = cam
     
     cities = make([dynamic]City, 0, 1024*2)
@@ -40,17 +44,19 @@ start :: proc() {
     
     gameMap = make([dynamic]Tile, mapDimensions.x * mapDimensions.y)
 
-    rl.SetConfigFlags(rl.ConfigFlags{.VSYNC_HINT})
+    rl.SetTargetFPS(60)
+    rl.SetConfigFlags(rl.ConfigFlags{ .WINDOW_RESIZABLE })
     rl.InitWindow(i32(windowDimensions.x), i32(windowDimensions.y), "ATom")
     windowRect = Rect{0, 0, windowDimensions.x, windowDimensions.y}
     defer rl.CloseWindow()
 
     database.generateManifests(db)
-    project.syncManifest()
     defer unloadAssets()
 
     faction.generateFactions(3)
     playerFaction = &factions[0]
+
+    log.debug(TechnologyManifest)
 
     generateMap()
 
@@ -60,7 +66,8 @@ start :: proc() {
     defer rl.UnloadTexture(textures.city)
     textures.pop = rl.LoadTexture("Assets/Sprites/pop.png")
     defer rl.UnloadTexture(textures.pop)
-    
+    textures.technology = rl.LoadTexture("Assets/Sprites/technology.jpg")
+    defer rl.UnloadTexture(textures.technology)
     
     for !rl.WindowShouldClose() {
         updateState()
@@ -69,8 +76,36 @@ start :: proc() {
     }
 }
 
+updateWindowSize :: proc() {
+    using shared
+
+    old_tile_size := tileSize
+    window_width := f32(rl.GetScreenWidth())
+    window_height := f32(rl.GetScreenHeight())
+    windowRect.width = window_width
+    windowRect.height = window_height
+    windowDimensions = Vector2{window_width, window_height}
+
+    defaultTileSize := window_height/8
+    tileSize = defaultTileSize
+    map_space := f32(mapDimensions.x)*tileSize
+    //too thorny
+    speculative_x := cam.target.x*(tileSize/old_tile_size)
+    cam_offset := abs(speculative_x - map_space/2)
+    pixels_to_cover := map_space - cam_offset*2 
+    pixels_covered := windowDimensions.x / cam.zoom
+    tiles_to_cover := pixels_to_cover / tileSize
+    if pixels_covered > pixels_to_cover {
+        tileSize = pixels_covered / tiles_to_cover
+    }
+    cam.offset = windowDimensions/2
+    cam.target = cam.target*(tileSize/old_tile_size)
+}
+
 updateState :: proc() {
     using shared
+
+    updateWindowSize()
 
     lastMousePostion := mousePosition
     mousePosition = rl.GetMousePosition()
@@ -158,15 +193,21 @@ renderState :: proc() {
     using shared
 
     rl.BeginDrawing()
-    rl.BeginMode2D(cam)
-    rl.ClearBackground(rl.GetColor(0x181818ff))
-    render.gameMap()
-    ui.drawMapStuff()
-    render.pops()
-    // rl.EndMode2D()
-    // rl.BeginMode2D(camNoZoom)
-    rl.EndMode2D()
-    ui.drawUI()
+    if currentUIState == .MAP {
+        rl.BeginMode2D(cam)
+        rl.ClearBackground(rl.GetColor(0x181818ff))
+        render.gameMap()
+        ui.drawMapStuff()
+        render.pops()
+        // rl.EndMode2D()
+        // rl.BeginMode2D(camNoZoom)
+        rl.EndMode2D()
+        ui.drawUI()
+    }
+    else {
+        updateWindowSize()
+        ui.drawTechScreen(windowRect)
+    }
     rl.EndDrawing()
 }
 
@@ -213,12 +254,30 @@ updateCamera :: proc() {
 
     if rl.IsMouseButtonDown(.LEFT) {
         if rl.IsMouseButtonPressed(.LEFT) {
-            mouseMovement = Vector2{}
+            mouseMovement = Vector2{0,0}
         }
+        old_target := cam.target
         cam.target -= mouseMovement
+        if  canCameraSeeOutside() {
+            cam.target = old_target
+        }
         camNoZoom.target = cam.target
     }
-    cam.zoom += rl.GetMouseWheelMoveV().y / 10.0
+    old_zoom := cam.zoom
+    cam.zoom += rl.GetMouseWheelMoveV().y / 12.0
+    if canCameraSeeOutside() {
+        cam.zoom = old_zoom
+    }
+}
+
+canCameraSeeOutside :: proc() -> bool {
+    using shared
+
+    world_dimension := Vector2{f32(mapDimensions.x)*tileSize, f32(mapDimensions.y)*tileSize}
+    real_window := windowDimensions / cam.zoom
+    x_edge := min(cam.target.x, world_dimension.x - cam.target.x)
+    y_edge := min(cam.target.y, world_dimension.y - cam.target.y)
+    return x_edge < real_window.x/2 || y_edge < real_window.y/2
 }
 
 unloadAssets :: proc() {

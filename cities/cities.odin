@@ -8,7 +8,7 @@ import rl "vendor:raylib"
 import shared "../shared"
 import unit "../units"
 import tile "../tiles"
-import pop "../pops"
+import citizen "../pops"
 import project "../projects"
 
 City :: shared.City
@@ -38,7 +38,7 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
         tile.claim(city, tl)
     }
     t.flags += { .CONTAINS_CITY }
-    city.population = { pop.create(city) }
+    city.population = { citizen.create(city) }
     return city
 }
 
@@ -60,7 +60,9 @@ getPopCost :: proc(c: City) -> f32 {
 
 draw :: proc(using city: City) {
     using shared
-    rl.DrawTextureEx(textures.city, Vector2{f32(i32(location.coordinate.x)*tileSize), f32(i32(location.coordinate.y)*tileSize)}, 0.0, 0.5, rl.WHITE)
+    source := Rect{0, 0, f32(textures.city.width), f32(textures.city.height)}
+    destination := Rect{f32(location.coordinate.x)*tileSize, f32(location.coordinate.y)*tileSize, tileSize, tileSize}
+    rl.DrawTexturePro(textures.city, source, destination, Vector2{0,0}, 0.0, rl.WHITE)
 }
 
 update :: proc(c: ^City) {
@@ -73,24 +75,31 @@ update :: proc(c: ^City) {
         if p.state == .WORKING {
             yields += p.tile.terrain.yields
         }
-        yields[.FOOD] -= pop.DIET
+        yields[.FOOD] -= citizen.DIET
     }
     for building in c.buildings {
         yields += building.type.yields
         multipliers += building.type.multipliers
     }
+    yields[.PRODUCTION] += 2
     yields *= multipliers
-    if c.owner != playerFaction {
-        yields[.PRODUCTION] += 2
-    }
     c.growth += f32(yields[.FOOD])
     c.hammers += f32(yields[.PRODUCTION])
     c.owner.gold += f32(yields[.GOLD])
     pop_cost := getPopCost(c^)
     for c.growth >= pop_cost {
-        append(&c.population, pop.create(c))
+        append(&c.population, citizen.create(c))
         c.growth -= pop_cost
         pop_cost = getPopCost(c^)
+    }
+    for c.growth < 0 {
+        pop(&c.population)
+        pop_cost = getPopCost(c^)
+        c.growth += pop_cost
+        if len(c.population) == 0 {
+            destroy(c)
+            return
+        }
     }
     if c.project != nil {
         project_cost := f32(project.getCost(c.project))
@@ -118,8 +127,14 @@ createBuilding :: proc(t: BuildingType, c: ^City) -> ^Building {
 destroy :: proc(c: ^City) {
     assert(!c.destroyed)
     c.location.flags -= { .CONTAINS_CITY }
+    log.info("city destroyed, name:", c.name, ", owner:", c.owner.type.name)
     delete(c.population)
     delete(c.tiles)
     delete(c.buildings)
+    for ct, index in c.owner.cities {
+        if ct == c {
+            unordered_remove(&c.owner.cities, index)
+        }
+    } 
     c.destroyed = true
 }
