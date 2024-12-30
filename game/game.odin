@@ -81,14 +81,20 @@ start :: proc() {
     defer rl.UnloadTexture(textures.technology)
     
     for !rl.WindowShouldClose() {
+
+        rl.BeginDrawing()
+        rl.ClearBackground(rl.GetColor(0x181818ff))
         if rl.IsKeyPressed(.T) {
             currentUIState = .TECH
         }
         if rl.IsKeyPressed(.M) {
             currentUIState = .MAP
         }
-        handleInput()
-        renderState()
+        updateWindowSize()
+        handleScreenSpaceInput()
+        handleWorldSpaceInput()
+        rl.EndDrawing()
+
         free_all(context.temp_allocator)
     }
 }
@@ -119,19 +125,38 @@ updateWindowSize :: proc() {
     cam.target = cam.target*(tileSize/old_tile_size)
 }
 
-handleInput :: proc() {
+handleScreenSpaceInput :: proc() {
     using shared
 
     switch currentUIState {
-        case .MAP: handleInput_MAP()
-        case .TECH: handleInput_TECH()
+        case .MAP: 
+            rl.BeginMode2D(cam)
+            render.gameMap()
+            rl.EndMode2D()
+            handleInput_MAP()
+        case .TECH: 
+            handleInput_TECH()
+            //TODO: this should be worldspace when we get tech scrolling 8)
+            ui.drawTechScreen(windowRect)
     }
+}
+
+handleWorldSpaceInput :: proc() {
+    using shared
+    
+    rl.BeginMode2D(cam)
+    switch currentUIState {
+        case .MAP: 
+            ui.showBorders()
+            ui.showBanners()
+            render.pops()
+        case .TECH: {}
+    }
+    rl.EndMode2D()
 }
 
 handleInput_MAP :: proc() {
     using shared
-
-    updateWindowSize()
 
     lastMousePostion := mousePosition
     mousePosition = rl.GetMousePosition()
@@ -191,7 +216,7 @@ handleInput_MAP :: proc() {
             click_consumed = true
             log.info("selected unit:", tileUnderMouse.units[0])
         }
-        if .CONTAINS_CITY in tileUnderMouse.flags {
+        else if .CONTAINS_CITY in tileUnderMouse.flags {
             selectedCity = tileUnderMouse.owner
             click_consumed = true
         }
@@ -213,8 +238,6 @@ handleInput_MAP :: proc() {
     if rl.IsKeyPressed(.T) {
         currentUIState = .TECH
     }
-    ui.showBorders()
-    ui.showBanners()
     p2 = false
 }
 
@@ -224,28 +247,6 @@ handleInput_TECH :: proc() {
     if rl.IsKeyPressed(.M) {
         currentUIState = .MAP
     }
-}
-
-renderState :: proc() {
-    using shared
-
-    rl.BeginDrawing()
-    if currentUIState == .MAP {
-        rl.BeginMode2D(cam)
-        rl.ClearBackground(rl.GetColor(0x181818ff))
-        render.gameMap()
-        ui.drawMapStuff()
-        render.pops()
-        // rl.EndMode2D()
-        // rl.BeginMode2D(camNoZoom)
-        rl.EndMode2D()
-        ui.drawUI()
-    }
-    else {
-        updateWindowSize()
-        ui.drawTechScreen(windowRect)
-    }
-    rl.EndDrawing()
 }
 
 nextTurn :: proc() {
@@ -260,11 +261,12 @@ nextTurn :: proc() {
     log.info("turn")
 
     for &f in game.factions {
-        faction.update(&f)
         if f.id != game.playerFaction.id {
+            faction.update(&f)
             faction.doAiTurn(&f)
         }
     }
+    faction.update(game.playerFaction)
 }
 
 initAudio :: proc() {

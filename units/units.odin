@@ -2,15 +2,15 @@ package units
 
 import "core:log"
 
-import rl "vendor:raylib"
-
 import shared "../shared"
 import pathing "../pathing"
 import tile "../tiles"
+import rendering "../rendering"
 
 
 Unit :: shared.Unit
 UnitType :: shared.UnitType
+UnitRenderer :: shared.UnitRenderer
 
 MovementType :: shared.MovementType
 Faction :: shared.Faction
@@ -19,16 +19,12 @@ Tile :: shared.Tile
 create :: proc(ut: UnitType, f: ^Faction, t: ^Tile) {
     using shared
 
-    append(&game.units, Unit{ut, f, t, {}})
+    append(&game.units, Unit{ut, f, t, {}, -1})
     new_unit := &game.units[len(game.units) - 1] 
     append(&f.units, new_unit)
     entered(new_unit, t)
+    new_unit.renderer_id = rendering.createUnitRenderer(new_unit)
     log.info("new unit: ", new_unit)
-}
-
-draw :: proc(using unit: Unit) {
-    using shared
-    rl.DrawTextureEx(unit.type.texture, Vector2{f32(tile.coordinate.x)*tileSize, f32(tile.coordinate.y)*tileSize}, 0.0, 0.5, rl.WHITE)
 }
 
 update :: proc(u: ^Unit) {

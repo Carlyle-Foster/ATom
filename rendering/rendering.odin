@@ -1,35 +1,61 @@
 package rendering
 
 import rl "vendor:raylib"
+import rlx "../rlx"
 
 import shared "../shared"
-import city "../cities"
-import unit "../units"
 import tile "../tiles"
+
+City :: shared.City
+Unit :: shared.Unit
+CityRenderer :: shared.CityRenderer
+UnitRenderer :: shared.UnitRenderer
 
 gameMap :: proc() {
     using shared
 
-    tile := Tile{}
-    color := Color{}
     size := i32(tileSize)
     for y in 0..<i32(game.world.dimensions.y) {
         for x in 0..<i32(game.world.dimensions.x) {
-            tile = game.world.tiles[x + y*i32(game.world.dimensions.x)]
-            color = rl.ColorFromHSV(tile.terrain.hue, 0.65, 1)
-            if tile.discovery_mask & (1 << game.playerFaction.id) > 0 {
-                rl.DrawRectangle(x*size, y*size, size, size, color)
+            t := tile.get(x, y)
+            c := rl.ColorFromHSV(t.terrain.hue, 0.65, 1)
+            if t.discovery_mask & (1 << game.playerFaction.id) > 0 {
+                rl.DrawRectangle(x*size, y*size, size, size, c)
             }
         }
     }
-    for c in game.cities {
-        if !c.destroyed {
-            city.draw(c)
-        }
+    for cr in CityRendererList {
+        renderCity(cr)
     }
-    for u in game.units {
-        unit.draw(u)
+    for ur in UnitRendererList {
+        renderUnit(ur)
     }
+}
+
+createCityRenderer :: proc(c: ^City) -> (renderer_id: int) {
+    using shared
+    append(&CityRendererList, CityRenderer{c, false})
+    renderer_id = len(CityRendererList) - 1
+    return
+}
+
+renderCity :: proc(using cr: CityRenderer) {
+    using shared
+    if !city.destroyed {
+        rlx.drawAtopTile(textures.city, city.location)
+    }
+}
+
+createUnitRenderer :: proc(u: ^Unit) -> (renderer_id: int) {
+    using shared
+    append(&UnitRendererList, UnitRenderer{u})
+    renderer_id = len(UnitRendererList) - 1
+    return
+}
+
+renderUnit :: proc(using ur: UnitRenderer) {
+    using shared
+    rlx.drawAtopTile(unit.type.texture, unit.tile)
 }
 
 pops :: proc() {
@@ -40,9 +66,7 @@ pops :: proc() {
             for pop in city.population {
                 transparent :: Color{255,255,255,128}
                 tint := pop.state == .WORKING ? rl.WHITE : transparent
-                source := Rect{0, 0, f32(textures.pop.width), f32(textures.pop.height)}
-                destination := tile.getRect(pop.tile)
-                rl.DrawTexturePro(textures.pop, source, destination, Vector2{0,0}, 0.0,  tint)
+                rlx.drawAtopTile(textures.pop, pop.tile,  tint)
             }
         }
     }

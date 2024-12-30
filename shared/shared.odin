@@ -30,7 +30,14 @@ City :: struct {
     project: ProjectType,
     location: ^Tile,
     tiles: [dynamic]^Tile,
+    renderer_id: int,
 }
+
+CityRenderer :: struct {
+    city: ^City,
+    was_clicked: bool, 
+}
+CityRendererList: [dynamic]CityRenderer
 
 UnitType :: struct {
     name: cstring,
@@ -46,7 +53,13 @@ Unit :: struct {
     owner: ^Faction,
     tile: ^Tile,
     path: [dynamic]^Tile,
+    renderer_id: int,
 }
+
+UnitRenderer :: struct {
+    unit: ^Unit,
+}
+UnitRendererList: [dynamic]UnitRenderer
 
 Terrain :: struct {
     name: cstring,
@@ -181,7 +194,7 @@ Technology :: struct {
     projects: [dynamic]ProjectType,
     cost: int,
 }
-MAX_TECHS :: 64
+MAX_TECHS :: 128
 
 Faction :: struct {
     type: FactionType,

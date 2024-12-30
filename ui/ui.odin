@@ -33,34 +33,6 @@ ALIGN_CENTER :: Alignment.HALFWAY
 ALIGN_RIGHT :: Alignment.END
 ALIGN_BOTTOM :: Alignment.END
 
-UI_Rect :: struct {
-    rect: Rect,
-    color: Color,
-    mode: DrawMode,
-}
-
-UI_Line :: struct {
-    start: Vector2,
-    end: Vector2,
-    thickness: f32,
-    color: Color,
-    mode: DrawMode,
-}
-
-UI_Text :: struct {
-    text: cstring,
-    rect: Rect,
-    color: Color,
-    align: Alignment,
-    mode: DrawMode,
-}
-
-UI_Sprite :: struct {
-    texture: rl.Texture,
-    rect: Rect,
-    mode: DrawMode,
-}
-
 Buttons: [dynamic]UI_Button = {}
 
 UI_Button :: struct {
@@ -69,49 +41,60 @@ UI_Button :: struct {
     mode: DrawMode,
 }
 
-rectsToDraw := make([dynamic]UI_Rect, 0, 64)
-linesToDraw := make([dynamic]UI_Line, 0, 64)
-textToDraw := make([dynamic]UI_Text, 0, 64)
-spritesToDraw := make([dynamic]UI_Sprite, 0, 64)
-
-showRect :: proc(rect: Rect, color: Color, mode: DrawMode) {
-    append(&rectsToDraw, UI_Rect{rect, color, mode})
+showRect :: proc(rect: Rect, color: Color) {
+    rl.DrawRectangleRec(rect, color)
 }
 
-showLine :: proc(start, end: Vector2, thickness: f32, color: Color, mode: DrawMode) {
-    append(&linesToDraw, UI_Line{start, end, thickness, color, mode})
+showLine :: proc(start, end: Vector2, thickness: f32, color: Color) {
+    rl.DrawLineEx(start, end, thickness, color)
 }
 
-showSprite :: proc(rect: Rect, sprite: rl.Texture, mode: DrawMode, background: Color = rl.BLANK) {
+showSprite :: proc(rect: Rect, sprite: rl.Texture, background: Color = rl.BLANK) {
     if background != rl.BLANK {
-        showRect(rect, background, mode)
+        showRect(rect, background)
     }
-    append(&spritesToDraw, UI_Sprite{sprite, rect, mode})
+
+    scale := min(rect.width/f32(sprite.width), rect.height/f32(sprite.height))
+    rl.DrawTextureEx(sprite, Vector2{rect.x, rect.y}, 1.0, scale, rl.WHITE)
 }
 
-showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, mode: DrawMode, background: Color = rl.BLANK) {
+showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, background: Color = rl.BLANK) {
+    rect := rect
     if background != rl.BLANK {
-        showRect(rect, background, mode)
+        showRect(rect, background)
     }
-    inlay_rect := subRectangle(rect, 1.0, 0.8, ALIGN_CENTER, ALIGN_CENTER)
-    append(&textToDraw, UI_Text{text, inlay_rect, color, align, mode})
+    rect = subRectangle(rect, 1.0, 0.8, ALIGN_CENTER, ALIGN_CENTER)
+
+    font_size := i32(rect.height)
+    text_width := rl.MeasureText(text, font_size)
+    for text_width > i32(rect.width) {
+        font_size -= 1
+        text_width = rl.MeasureText(text, font_size)
+    }
+    x: i32
+    switch align {
+        case ALIGN_LEFT: x = i32(rect.x)
+        case ALIGN_CENTER: x = i32(rect.x) + (i32(rect.width) - text_width)/2
+        case ALIGN_RIGHT: x = i32(rect.x) + (i32(rect.width) - text_width)
+    }
+    y := i32(rect.y) + (i32(rect.height) - font_size)/2
+    rl.DrawText(text, x, y, font_size, color)
 }
 
 showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode, text: cstring = "") -> bool {
     v := was_pressed^
     was_pressed^ = false
-    showRect(rect, color, mode)
+    showRect(rect, color)
     text_box := Rect{rect.x + rect.width/10, rect.y + rect.height/10, rect.width*0.8, rect.height*0.8}
-    showText(text_box, rl.GetColor(0xaaaaffff), text, ALIGN_LEFT, mode)
+    showText(text_box, rl.GetColor(0xaaaaffff), text, ALIGN_LEFT)
     append(&Buttons, UI_Button{rect, was_pressed, mode})
     return v
 }
 
 showBanners :: proc() {
     using shared
-    using game
 
-    for &city, index in cities {
+    for &city, index in game.cities {
         if !city.destroyed {
             showBanner(&city, index)
         }
@@ -131,11 +114,11 @@ showBanners :: proc() {
             }
         }
         pop_rect := chopRectangle(&rect, rect.width/4, .LEFT)
-        showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT, .MAP)
+        showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT)
         builder := strings.builder_make()
         strings.write_int(&builder, len(population))
         pop_text := strings.to_cstring(&builder)
-        showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER, .MAP)
+        showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER)
     }
 }
 
@@ -153,13 +136,13 @@ showSidebar :: proc(r: Rect) {
     padding :: 1.45
     assert(selectedCity != nil)
     
-    showRect(r, rl.PURPLE, .UI)
+    showRect(r, rl.PURPLE)
     text: cstring = selectedCity != {} ? selectedCity.name : "NULL"
     title_rect := chopRectangle(&r, r.height/5.0, .TOP)
     entry_size := r.height/5
-    showRect(title_rect, rl.GetColor(0x992465ff), .UI)
+    showRect(title_rect, rl.GetColor(0x992465ff))
     text_box := Rect{title_rect.x + title_rect.width/10, title_rect.y + title_rect.height/10, title_rect.width*0.8, title_rect.height*0.8}
-    showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER, .UI)
+    showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER)
     @(static) ps: [64]bool = {}
     assert(len(ps) >= len(projectManifest))
     for project, index in projectManifest {
@@ -183,11 +166,11 @@ showSidebar :: proc(r: Rect) {
             }
         }
         sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
-        showSprite(sprite_rect, texture, .UI)
+        showSprite(sprite_rect, texture)
         entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
-        showRect(entry_rect, rl.GetColor(0x18181899), .UI)
+        showRect(entry_rect, rl.GetColor(0x18181899))
         entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
-        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, .UI, rl.GOLD)
+        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
     }
 }
 
@@ -203,13 +186,13 @@ showSidebar2 :: proc(r: Rect) {
         name := building.type.name
         texture := building.type.texture
         entry_rect := chopRectangle(&r, r.height/8, .TOP)
-        showRect(entry_rect, rl.PURPLE,  .UI)
+        showRect(entry_rect, rl.PURPLE)
         sprite_rect := chopRectangle(&entry_rect, r.width/3, .LEFT)
-        showSprite(sprite_rect, texture, .UI)
+        showSprite(sprite_rect, texture)
         entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
-        showRect(entry_rect, rl.GetColor(0x18181899), .UI)
+        showRect(entry_rect, rl.GetColor(0x18181899))
         entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
-        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, .UI, rl.GOLD)
+        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
     }
 }
 
@@ -224,7 +207,7 @@ showBorders :: proc() {
                 color := faction.type.primary_color
                 color.a = 72
                 rect := tile.getRect(tl)
-                showRect(rect, color, .MAP)
+                showRect(rect, color)
                 center := Vector2{rect.x + rect.width/2, rect.y + rect.height/2}
                 color = faction.type.secondary_color
                 color.a = 255
@@ -237,7 +220,7 @@ showBorders :: proc() {
                         offset := edge * linalg.matrix2_rotate_f32(math.PI/2)
                         start := center + edge - offset
                         end := center + edge + offset
-                        showLine(start, end, 6, color, .MAP)
+                        showLine(start, end, 6, color)
                     }
                 }
             }
@@ -309,95 +292,6 @@ subRectangleCooked :: proc(r: Rect, w_percent, h_percent: f32, x_align, y_align:
 
 subRectangle :: proc{subRectangleRaw, subRectangleCooked}
 
-drawMapStuff :: proc() {
-    for rect in rectsToDraw {
-        if rect.mode == .MAP {
-            rl.DrawRectangleRec(rect.rect, rect.color)
-        }
-    }
-    for line in linesToDraw {
-        if line.mode == .MAP {
-            rl.DrawLineEx(line.start, line.end, line.thickness, line.color)
-        }
-    }
-    for text in textToDraw {
-        if text.mode == .MAP {
-            drawText(text)
-        }
-    }
-    for sprite in spritesToDraw {
-        if sprite.mode == .MAP {
-            drawSprite(sprite)
-        }
-    }
-
-    drawText :: proc(using t: UI_Text) {
-        font_size := i32(t.rect.height)
-        text_width := rl.MeasureText(text, font_size)
-        for text_width > i32(rect.width) {
-            font_size -= 1
-            text_width = rl.MeasureText(text, font_size)
-        }
-        x: i32
-        switch align {
-            case ALIGN_LEFT: x = i32(rect.x)
-            case ALIGN_CENTER: x = i32(rect.x) + (i32(rect.width) - text_width)/2
-            case ALIGN_RIGHT: x = i32(rect.x) + (i32(rect.width) - text_width)
-        }
-        y := i32(rect.y) + (i32(rect.height) - font_size)/2
-        rl.DrawText(text, x, y, font_size, color)
-    }
-
-    drawSprite  :: proc(using s: UI_Sprite) {
-        scale := min(rect.width/f32(texture.width), rect.height/f32(texture.height))
-        rl.DrawTextureEx(texture, Vector2{rect.x, rect.y}, 1.0, scale, rl.WHITE)
-    }
-}
-
-drawUI :: proc() {
-    for rect in rectsToDraw {
-        if rect.mode == .UI {
-            rl.DrawRectangleRec(rect.rect, rect.color)
-        }
-    }
-    for line in linesToDraw {
-        if line.mode == .UI {
-            rl.DrawLineEx(line.start, line.end, line.thickness, line.color)
-        }
-    }
-    for text in textToDraw {
-        if text.mode == .UI {
-            drawText(text)
-        }
-    }
-    for sprite in spritesToDraw {
-        if sprite.mode == .UI {
-            drawSprite(sprite)
-        }
-    }
-    clear(&rectsToDraw)
-    clear(&linesToDraw)
-    clear(&textToDraw)
-    clear(&spritesToDraw)
-
-    drawText :: proc(using t: UI_Text) {
-        font_size := i32(t.rect.height)
-        text_width := rl.MeasureText(text, font_size)
-        for text_width > i32(rect.width) && font_size != 0 {
-            font_size -= 1
-            text_width = rl.MeasureText(text, font_size)
-        }
-        textX := i32(rect.x) + (i32(rect.width) - text_width)/2
-        textY := i32(rect.y) + (i32(rect.height) - font_size)/2
-        rl.DrawText(text, textX, textY, font_size, color)
-    }
-
-    drawSprite  :: proc(using s: UI_Sprite) {
-        scale := min(rect.width/f32(texture.width), rect.height/f32(texture.height))
-        rl.DrawTextureEx(texture, Vector2{rect.x, rect.y}, 1.0, scale, rl.WHITE)
-    }
-}
-
 drawTechScreen :: proc(r: Rect) {
     using shared
 
@@ -407,17 +301,18 @@ drawTechScreen :: proc(r: Rect) {
     tech.drawTree(windowRect)
 }
 
-findFocus :: proc(mouse_position: Vector2, cam: rl.Camera2D) {
+findFocus :: proc(screen_mouse: Vector2, cam: rl.Camera2D) {
     lucky_contestant: ^bool = nil
+    world_mouse := rl.GetScreenToWorld2D(screen_mouse, cam)
     for button in Buttons {
         switch button.mode {
             case .MAP: {
-                if rl.CheckCollisionPointRec(rl.GetScreenToWorld2D(mouse_position, cam), button.rect) {
+                if rl.CheckCollisionPointRec(world_mouse, button.rect) {
                     lucky_contestant = button.was_pressed
                 }
             }
             case .UI: {
-                if rl.CheckCollisionPointRec(mouse_position, button.rect) {
+                if rl.CheckCollisionPointRec(screen_mouse, button.rect) {
                     lucky_contestant = button.was_pressed
                 }
             }

@@ -45,6 +45,7 @@ find :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
                 priority_queue.push(&frontier, node)
             }
         }
+        if priority_queue.len(frontier) == 0 do break
         selected_node = priority_queue.pop(&frontier)
         selected_tile = selected_node.current_tile
     }

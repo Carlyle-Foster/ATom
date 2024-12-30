@@ -3,13 +3,12 @@ package cities
 import "core:log"
 import "core:strings"
 
-import rl "vendor:raylib"
-
 import shared "../shared"
 import unit "../units"
 import tile "../tiles"
 import citizen "../pops"
 import project "../projects"
+import rendering "../rendering"
 
 City :: shared.City
 BuildingType :: shared.BuildingType
@@ -31,6 +30,7 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
         project = {}, 
         location = t, 
         tiles = {},
+        renderer_id = -1,
     })
     city := &game.cities[len(game.cities) - 1]
     append(&f.cities, city)
@@ -39,6 +39,7 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
     }
     t.flags += { .CONTAINS_CITY }
     city.population = { citizen.create(city) }
+    city.renderer_id = rendering.createCityRenderer(city)
     return city
 }
 
@@ -56,13 +57,6 @@ getPopCost :: proc(c: City) -> f32 {
     base := 10
     mult := 5
     return f32(base + len(c.population)*mult)
-}
-
-draw :: proc(using city: City) {
-    using shared
-    source := Rect{0, 0, f32(textures.city.width), f32(textures.city.height)}
-    destination := Rect{f32(location.coordinate.x)*tileSize, f32(location.coordinate.y)*tileSize, tileSize, tileSize}
-    rl.DrawTexturePro(textures.city, source, destination, Vector2{0,0}, 0.0, rl.WHITE)
 }
 
 update :: proc(c: ^City) {
