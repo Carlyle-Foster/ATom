@@ -8,5 +8,5 @@ CREATE TABLE "Technology" (
 INSERT INTO Technology (Name, Unlocks, Cost)
 VALUES
 ("Fancy Hotels", "Valet", 0),
-("Sailing", "Galley", 15),
-("metalworking", "Forge", 10);
+("Sailing", "Galley", 35),
+("metalworking", "Forge", 40);

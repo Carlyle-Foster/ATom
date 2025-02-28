@@ -10,5 +10,5 @@ CREATE TABLE "Units" (
 
 INSERT INTO "Units" (Name, Texture, Strength, Defense, MovementType, Cost)
 VALUES
-("Valet", "Assets/Sprites/adude.png", 6, 10, "land", 16),
-("Galley", "Assets/Sprites/Galley.png", 6, 10, "shoreline", 16);
+("Valet", "Assets/Sprites/adude.png", 6, 10, "land", 22),
+("Galley", "Assets/Sprites/Galley.png", 6, 10, "shoreline", 35);
