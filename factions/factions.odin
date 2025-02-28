@@ -70,12 +70,10 @@ doAiTurn :: proc(f: ^Faction) {
         if count > 100 do break
     }
     for city in f.cities {
-        i := 0
-        for &p in city.population {
+        for &p, i in city.population {
             if p.state == .UNEMPLOYED && i < len(city.tiles) {
                 pop.employ(&p, city.tiles[i])
             }
-            i += 1
         }
         for u in f.units {
                 target := u.tile.coordinate
@@ -86,10 +84,14 @@ doAiTurn :: proc(f: ^Faction) {
                 }
         }
         if len(city.location.units) == 0 && city.project == nil {
+            surroundings: bit_set[MovementType]
+            for tile in city.tiles {
+                surroundings += {tile.terrain.movement_type}
+            }
             for project in projectManifest {
                 switch type in project {
                     case ^UnitType:
-                        if .LAND in type.habitat {
+                        if type.habitat & surroundings != {} {
                             city.project = project
                             break
                         }
