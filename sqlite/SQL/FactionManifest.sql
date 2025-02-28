@@ -7,6 +7,6 @@ CREATE TABLE "Factions" (
 
 INSERT INTO "Factions" (Name, PrimaryColor, SecondaryColor)
 VALUES
-("Delhi", "blue", "dark purple"),
-("Rome", "purple", "gold"),
-("Sparta", "black", "red");
+("Delhi", 0xb15cb6ff, 0x1b993aff),
+("Rome", 0x832eb8ff, 0xbb8e3bff),
+("Sparta", 0x301212ff, 0xc01515ff);

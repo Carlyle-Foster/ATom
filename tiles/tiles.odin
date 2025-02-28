@@ -18,7 +18,7 @@ Rect :: shared.Rect
 
 Flags :: shared.TileFlags
 
-create :: proc(coordinate: Coordinate, terrain: Terrain, resource: ResourceType) -> Tile {
+create :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType) -> Tile {
     using shared
 
     return Tile {

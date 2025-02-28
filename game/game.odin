@@ -15,9 +15,11 @@ import pop "../pops"
 import faction "../factions"
 import render "../rendering" 
 import database "../database"
+import tech "../technologies"
 
 Faction :: shared.Faction
 GameState :: shared.GameState
+Rect :: shared.Rect
 
 initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> GameState {
     using shared
@@ -40,15 +42,15 @@ start :: proc() {
     rl.SetRandomSeed(u32(time.now()._nsec))
     // rl.SetRandomSeed(2)
 
-    db := database.initialize("sqlite/SQL")
-
     rl.SetTargetFPS(60)
     rl.SetConfigFlags(rl.ConfigFlags{ .WINDOW_RESIZABLE })
     rl.InitWindow(i32(windowDimensions.x), i32(windowDimensions.y), "ATom")
     windowRect = Rect{0, 0, windowDimensions.x, windowDimensions.y}
     defer rl.CloseWindow()
 
-    database.generateManifests(db)
+    db := database.initialize("sqlite/SQL")
+    defer database.close(db)
+    database.regenerateManifests(db, "sqlite/SQL")
     defer unloadAssets()
 
     game = initializeState(
@@ -84,11 +86,20 @@ start :: proc() {
 
         rl.BeginDrawing()
         rl.ClearBackground(rl.GetColor(0x181818ff))
+
+        lastMousePostion := mousePosition
+        mousePosition = rl.GetMousePosition()
+        mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
+        
+        ui.findFocus(mousePosition, cam)
         if rl.IsKeyPressed(.T) {
             currentUIState = .TECH
         }
         if rl.IsKeyPressed(.M) {
             currentUIState = .MAP
+        }
+        if rl.IsKeyPressed(.R) {
+            database.regenerateManifests(db, "sqlite/SQL")
         }
         updateWindowSize()
         handleScreenSpaceInput()
@@ -137,7 +148,7 @@ handleScreenSpaceInput :: proc() {
         case .TECH: 
             handleInput_TECH()
             //TODO: this should be worldspace when we get tech scrolling 8)
-            ui.drawTechScreen(windowRect)
+            drawTechScreen(windowRect)
     }
 }
 
@@ -157,12 +168,6 @@ handleWorldSpaceInput :: proc() {
 
 handleInput_MAP :: proc() {
     using shared
-
-    lastMousePostion := mousePosition
-    mousePosition = rl.GetMousePosition()
-    mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
-
-    ui.findFocus(mousePosition, cam)
 
     updateCamera()
     
@@ -252,9 +257,17 @@ handleInput_TECH :: proc() {
 nextTurn :: proc() {
     using shared
 
+    if game.playerFaction.research_project.id == -1 {
+        currentUIState = .TECH
+        return
+    }
+
     for &city in game.playerFaction.cities {
         if city.project == nil {
             selectedCity = city
+            city_plot := tile.getRect(city.location)
+            target := Vector2{city_plot.x + city_plot.width/2, city_plot.y + city_plot.height/2} 
+            cam.target = target
             return
         }
     }
@@ -302,6 +315,15 @@ updateCamera :: proc() {
     if canCameraSeeOutside() {
         cam.zoom = old_zoom
     }
+}
+
+drawTechScreen :: proc(r: Rect) {
+    using shared
+
+    length := f32(textures.technology.height)*r.width/r.height
+    source_rect := Rect{0, 0, length, f32(textures.technology.height)}
+    rl.DrawTexturePro(textures.technology, source_rect, windowRect, Vector2{0, 0}, 0, rl.GRAY)
+    tech.drawTree(windowRect)
 }
 
 canCameraSeeOutside :: proc() -> bool {

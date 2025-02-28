@@ -60,14 +60,11 @@ renderUnit :: proc(using ur: UnitRenderer) {
 
 pops :: proc() {
     using shared
-
-    for faction in game.factions {
-        for city in faction.cities {
-            for pop in city.population {
-                transparent :: Color{255,255,255,128}
-                tint := pop.state == .WORKING ? rl.WHITE : transparent
-                rlx.drawAtopTile(textures.pop, pop.tile,  tint)
-            }
+    if selectedCity != nil {
+        for pop in selectedCity.population {
+            transparent :: Color{255,255,255,128}
+            tint := pop.state == .WORKING ? rl.WHITE : transparent
+            rlx.drawAtopTile(textures.pop, pop.tile,  tint)
         }
     }
 }

@@ -16,7 +16,7 @@ MovementType :: shared.MovementType
 Faction :: shared.Faction
 Tile :: shared.Tile
 
-create :: proc(ut: UnitType, f: ^Faction, t: ^Tile) {
+create :: proc(ut: ^UnitType, f: ^Faction, t: ^Tile) {
     using shared
 
     append(&game.units, Unit{ut, f, t, {}, -1})

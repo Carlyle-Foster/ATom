@@ -102,8 +102,8 @@ update :: proc(c: ^City) {
         project_cost := f32(project.getCost(c.project))
         if c.hammers >= project_cost {
             switch type in c.project {
-                case UnitType: unit.create(type,  c.owner, c.location)
-                case BuildingType: createBuilding(type, c)
+                case ^UnitType: unit.create(type,  c.owner, c.location)
+                case ^BuildingType: createBuilding(type, c)
             }
             c.hammers -= project_cost
             c.project = nil
@@ -112,7 +112,7 @@ update :: proc(c: ^City) {
     log.info("Population:", len(c.population), "growth", c.growth, "growth required", getPopCost(c^))
 }
 
-createBuilding :: proc(t: BuildingType, c: ^City) -> ^Building {
+createBuilding :: proc(t: ^BuildingType, c: ^City) -> ^Building {
     building := Building {
         type = t,
     }

@@ -8,7 +8,7 @@ import rl "vendor:raylib"
 
 import shared "../shared"
 import tile "../tiles"
-import tech "../technologies"
+// import tech "../technologies"
 
 Color :: rl.Color
 Vector2 :: rl.Vector2
@@ -124,9 +124,10 @@ showBanners :: proc() {
 
 showCityUI :: proc() {
     using shared
-
     showSidebar2(subRectangle(windowRect, 0.2, 0.8, ALIGN_RIGHT, ALIGN_CENTER))
-    showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
+    if selectedCity.owner == game.playerFaction {
+        showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
+    }
 }
 
 showSidebar :: proc(r: Rect) {
@@ -143,34 +144,39 @@ showSidebar :: proc(r: Rect) {
     showRect(title_rect, rl.GetColor(0x992465ff))
     text_box := Rect{title_rect.x + title_rect.width/10, title_rect.y + title_rect.height/10, title_rect.width*0.8, title_rect.height*0.8}
     showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER)
-    @(static) ps: [64]bool = {}
-    assert(len(ps) >= len(projectManifest))
-    for project, index in projectManifest {
-        name: cstring 
-        texture: rl.Texture  
-        switch type in project {
-            case UnitType: {
-                name = type.name
-                texture = type.texture
+    @(static) ps: [256]bool = {}
+    index := 0
+    for tech_id in game.playerFaction.techs {
+        tech := &TechnologyManifest[tech_id]
+        for project in tech.projects {
+            name: cstring 
+            texture: rl.Texture  
+            switch type in project {
+                case ^UnitType: {
+                    name = type.name
+                    texture = type.texture
+                }
+                case ^BuildingType: {
+                    name = type.name
+                    texture = type.texture
+                }
             }
-            case BuildingType: {
-                name = type.name
-                texture = type.texture
+            entry_rect := chopRectangle(&r, entry_size, .TOP)
+            if showButton(entry_rect, rl.PURPLE, &ps[index], .UI) {
+                if rl.IsMouseButtonPressed(.LEFT) {
+                    selectedCity.project = project
+                    selectedCity = nil
+                }
             }
+            sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
+            showSprite(sprite_rect, texture)
+            entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
+            showRect(entry_rect, rl.GetColor(0x18181899))
+            entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
+            showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
+            index += 1
+            assert(index <= len(ps))
         }
-        entry_rect := chopRectangle(&r, entry_size, .TOP)
-        if showButton(entry_rect, rl.PURPLE, &ps[index], .UI) {
-            if rl.IsMouseButtonPressed(.LEFT) {
-                selectedCity.project = project
-                selectedCity = nil
-            }
-        }
-        sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
-        showSprite(sprite_rect, texture)
-        entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
-        showRect(entry_rect, rl.GetColor(0x18181899))
-        entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
-        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
     }
 }
 
@@ -205,12 +211,12 @@ showBorders :: proc() {
             for tl in city.tiles {
                 assert(tl != nil, "tile pointer was nil")
                 color := faction.type.primary_color
-                color.a = 72
+                color.a = 128
                 rect := tile.getRect(tl)
                 showRect(rect, color)
                 center := Vector2{rect.x + rect.width/2, rect.y + rect.height/2}
                 color = faction.type.secondary_color
-                color.a = 255
+                color.a = 192
                 for direction in OrthogonalDirections {
                     neighbor := tile.get(tl.coordinate + direction)
                     if neighbor != nil && (neighbor.owner == nil || neighbor.owner.owner == nil || neighbor.owner.owner.id != faction.id) {
@@ -291,15 +297,6 @@ subRectangleCooked :: proc(r: Rect, w_percent, h_percent: f32, x_align, y_align:
 }
 
 subRectangle :: proc{subRectangleRaw, subRectangleCooked}
-
-drawTechScreen :: proc(r: Rect) {
-    using shared
-
-    length := f32(textures.technology.height)*r.width/r.height
-    source_rect := Rect{0, 0, length, f32(textures.technology.height)}
-    rl.DrawTexturePro(textures.technology, source_rect, windowRect, Vector2{0, 0}, 0, rl.GRAY)
-    tech.drawTree(windowRect)
-}
 
 findFocus :: proc(screen_mouse: Vector2, cam: rl.Camera2D) {
     lucky_contestant: ^bool = nil

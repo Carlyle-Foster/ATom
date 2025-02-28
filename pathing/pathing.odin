@@ -60,6 +60,8 @@ find :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
     }
     return path
 
+    
+
     less :: proc(a, b: ^A_StarNode) -> bool {
         return getCost(a) < getCost(b)
 

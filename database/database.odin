@@ -23,49 +23,50 @@ initialize :: proc(sql_path: string) -> ^sqlite.DataBase {
 
     if !os.exists("sqlite/game.db") {
         sqlite.open("sqlite/game.db", &db)
-        rebuildCache(db, sql_path)
+        buildCache(db, sql_path)
     }
     else {
         sqlite.open("sqlite/game.db", &db)
-    }
-    {
-        dir, err := os.open(sql_path)
-        if err != {} {
-            log.panic("failed to open directory", sql_path, os.error_string(err))
+        if cacheOutOfDate(sql_path) {
+            rebuildCache(db, sql_path)
         }
-        defer os.close(dir)
+    }
+    return db
+}
 
-        fi: os.File_Info
-        fi, err = os.stat("sqlite/game.db")
-        if err != {} {
-            log.panic("")
-        }
-        cache_mod_time := fi.modification_time
-        os.file_info_delete(fi)
-        
-        instructions: []os.File_Info
-        instructions, err = os.read_dir(dir, 128)
-        if err != {} {
-            log.panic("failed to read directory", sql_path, os.error_string(err))
-        }
-        defer os.file_info_slice_delete(instructions)
-        
-        for inst in instructions {
-            if time.diff(inst.modification_time, cache_mod_time) <= 0 {
-                sqlite.db_config(db, .RESET_DATABASE, 1, 0)
-                sqlite.exec(db, "VACUUM", nil, nil, nil)
-                sqlite.db_config(db, .RESET_DATABASE, 0, 0)
-                rebuildCache(db, sql_path)
-                break
-            }
-        }
-        return db
+cacheOutOfDate :: proc(sql_path: string) -> bool {
+    dir, err := os.open(sql_path)
+    if err != {} {
+        log.panic("failed to open directory", sql_path, os.error_string(err))
     }
+    defer os.close(dir)
+
+    fi: os.File_Info
+    fi, err = os.stat("sqlite/game.db")
+    if err != {} {
+        log.panic("")
+    }
+    cache_mod_time := fi.modification_time
+    os.file_info_delete(fi)
+    
+    instructions: []os.File_Info
+    instructions, err = os.read_dir(dir, 128)
+    if err != {} {
+        log.panic("failed to read directory", sql_path, os.error_string(err))
+    }
+    defer os.file_info_slice_delete(instructions)
+    
+    for inst in instructions {
+        if time.diff(inst.modification_time, cache_mod_time) <= 0 {
+            return true
+        }
+    }
+    return false
 }
 
 close :: proc(db: ^sqlite.DataBase) { sqlite.close(db) }
 
-rebuildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
+buildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
     dir, err := os.open(sql_path)
     defer os.close(dir)
     if err != {} {
@@ -77,7 +78,6 @@ rebuildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
     if err != {} {
         log.panic("failed to read directory", sql_path, os.error_string(err))
     }
-    
     for inst in instructions {
         sql, success := os.read_entire_file(inst.fullpath)
         if !success {
@@ -90,7 +90,20 @@ rebuildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
     }
 }
 
-generateManifests :: proc(db: ^sqlite.DataBase) {
+rebuildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
+    sqlite.db_config(db, .RESET_DATABASE, 1, 0)
+    sqlite.exec(db, "VACUUM", nil, nil, nil)
+    sqlite.db_config(db, .RESET_DATABASE, 0, 0)
+
+    buildCache(db, sql_path)
+    log.info("rebuilt cache")
+}
+
+regenerateManifests :: proc(db: ^sqlite.DataBase, sql_path: string) {
+    if cacheOutOfDate(sql_path) {
+        rebuildCache(db, sql_path)
+    }
+    clear(&shared.projectManifest)
     generateTerrainManifest(db)
     generateFactionManifest(db)
     generateUnitTypeManifest(db)
@@ -110,6 +123,7 @@ generateManifestGeneric :: proc(db: ^sqlite.DataBase, table: cstring, p: parser)
 }
 
 generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
+    clear(&shared.TerrainManifest)
     generateManifestGeneric(db, "Terrain", defineTerrain)
     
     defineTerrain :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
@@ -145,6 +159,7 @@ generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
 }
 
 generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
+    clear(&shared.UnitTypeManifest)
     generateManifestGeneric(db, "Units", defineUnitType)
 
     defineUnitType :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
@@ -169,12 +184,14 @@ generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
             i32(cost),
         }
         append(&shared.UnitTypeManifest, ut)
-        append(&shared.projectManifest, ProjectType(ut))
+        pt := &shared.UnitTypeManifest[len(shared.UnitTypeManifest)-1]
+        append(&shared.projectManifest, ProjectType(pt))
         return 0
     }
 }
 
 generateBuildingManifest :: proc(db: ^sqlite.DataBase) {
+    clear(&shared.BuildingTypeManifest)
     generateManifestGeneric(db, "Buildings", defineBuilding)
 
     defineBuilding :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
@@ -216,12 +233,14 @@ generateBuildingManifest :: proc(db: ^sqlite.DataBase) {
             i32(cost),
         }
         append(&shared.BuildingTypeManifest, bt)
-        append(&shared.projectManifest, ProjectType(bt))
+        pt := &shared.BuildingTypeManifest[len(BuildingTypeManifest)-1]
+        append(&shared.projectManifest, ProjectType(pt))
         return 0
     }
 }
 
 generateFactionManifest :: proc(db: ^sqlite.DataBase) {
+    clear(&shared.factionTypeManifest)
     generateManifestGeneric(db, "Factions", defineFaction)
     
     defineFaction :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
@@ -231,15 +250,15 @@ generateFactionManifest :: proc(db: ^sqlite.DataBase) {
 
         assert(rows == 3)
         name := strings.clone_to_cstring(string(values[0]))
-        primary_color, ok1 := parseColor(string(values[1]))
-        secondary_color, ok2 := parseColor(string(values[2]))
+        primary_color, ok1 := parse_int(string(values[1]))
+        secondary_color, ok2 := parse_int(string(values[2]))
 
         assert(ok1 && ok2)
         log.debug(name)
         append(&shared.factionTypeManifest, FactionType {
                 name, 
-                primary_color,
-                secondary_color,
+                rl.GetColor(u32(primary_color)),
+                rl.GetColor(u32(secondary_color)),
             },
         )
         return 0
@@ -247,6 +266,7 @@ generateFactionManifest :: proc(db: ^sqlite.DataBase) {
 }
 
 generateTechManifest :: proc(db: ^sqlite.DataBase) {
+    clear(&shared.TechnologyManifest)
     generateManifestGeneric(db, "Technology", defineTech)
     assert(len(shared.TechnologyManifest) <= MAX_TECHS)
     
@@ -309,19 +329,4 @@ parseHabitat :: proc(s: string) -> (bit_set[MovementType], bool) {
         case: return {}, false
     }
     return h, true
-}
-
-parseColor :: proc(s: string) -> (rl.Color, bool) {
-    c: rl.Color
-    switch strings.to_lower(s) {
-        case "red": c = rl.RED
-        case "blue": c = rl.BLUE
-        case "purple": c = rl.PURPLE
-        case "green": c = rl.GREEN
-        case "black": c = rl.BLACK
-        case "gold": c = rl.GOLD
-        case "dark purple": c = rl.DARKPURPLE
-        case: return {}, false
-    }
-    return c, true
 }

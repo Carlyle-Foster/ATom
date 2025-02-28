@@ -12,10 +12,10 @@ Texture :: shared.Texture
 
 getCost :: proc(p: ProjectType) -> i32 {
     switch type in p {
-        case UnitType: {
+        case ^UnitType: {
             return type.cost
         }
-        case BuildingType: {
+        case ^BuildingType: {
             return type.cost
         }
         case: {
@@ -26,10 +26,10 @@ getCost :: proc(p: ProjectType) -> i32 {
 
 getName :: proc(p: ProjectType) -> cstring {
     switch type in p {
-        case UnitType: {
+        case ^UnitType: {
             return type.name
         }
-        case BuildingType: {
+        case ^BuildingType: {
             return type.name
         }
         case: {
@@ -40,10 +40,10 @@ getName :: proc(p: ProjectType) -> cstring {
 
 getTexture :: proc(p: ProjectType) -> Texture {
     switch type in p {
-        case UnitType: {
+        case ^UnitType: {
             return type.texture
         }
-        case BuildingType: {
+        case ^BuildingType: {
             return type.texture
         }
         case: {

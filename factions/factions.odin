@@ -21,13 +21,15 @@ generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
     }
     for id in 0..<faction_count {
         winner := rand.int_max(small_array.len(contenders))
-        faction_type := factionTypeManifest[small_array.get(contenders, winner)]
+        faction_type := &factionTypeManifest[small_array.get(contenders, winner)]
         faction := Faction {
             type = faction_type,
             id = u32(id),
             cities = make([dynamic]^City, 0, 1024*1),
             units = make([dynamic]^Unit, 0, 1024*4),
             gold = 0.0,
+            techs = { 0 }, //this is the always the first tech listed in TechnologyManifest.sql
+            research_project = {id = -1},
         }
         append(&factions, faction)
         small_array.unordered_remove(&contenders, winner)
@@ -86,12 +88,12 @@ doAiTurn :: proc(f: ^Faction) {
         if len(city.location.units) == 0 && city.project == nil {
             for project in projectManifest {
                 switch type in project {
-                    case UnitType:
+                    case ^UnitType:
                         if .LAND in type.habitat {
                             city.project = project
                             break
                         }
-                    case BuildingType: 
+                    case ^BuildingType: 
                         continue
                 }
             }

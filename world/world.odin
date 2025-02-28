@@ -42,14 +42,14 @@ generate :: proc() {
             if radius > off_center {
                 r := rl.GetRandomValue(0, 24)
                 if r == 0 {
-                    tile.get(c)^  = tile.create(c, TerrainManifest[0], .PEARLS)
+                    tile.get(c)^  = tile.create(c, &TerrainManifest[0], .PEARLS)
                 }
                 else {
-                    tile.get(c)^  = tile.create(c, TerrainManifest[1], .PLATINUM)
+                    tile.get(c)^  = tile.create(c, &TerrainManifest[1], .PLATINUM)
                 }
             }
             else {
-                tile.get(c)^ = tile.create(c, TerrainManifest[2], .PLATINUM)
+                tile.get(c)^ = tile.create(c, &TerrainManifest[2], .PLATINUM)
             }
         }
     }

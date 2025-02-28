@@ -49,7 +49,7 @@ UnitType :: struct {
 }
 
 Unit :: struct {
-    type: UnitType,
+    type: ^UnitType,
     owner: ^Faction,
     tile: ^Tile,
     path: [dynamic]^Tile,
@@ -70,7 +70,7 @@ Terrain :: struct {
 
 Tile :: struct {
     coordinate: Coordinate,
-    terrain: Terrain,
+    terrain: ^Terrain,
     resource: ResourceType,
     owner: ^City,
     units: [dynamic]^Unit,
@@ -180,12 +180,12 @@ BuildingType :: struct {
 }
 
 Building :: struct {
-    type: BuildingType,
+    type: ^BuildingType,
 }
 
 ProjectType :: union {
-    UnitType,
-    BuildingType,
+    ^UnitType,
+    ^BuildingType,
 }
 
 Technology :: struct {
@@ -197,7 +197,7 @@ Technology :: struct {
 MAX_TECHS :: 128
 
 Faction :: struct {
-    type: FactionType,
+    type: ^FactionType,
     id: u32,
     cities: [dynamic]^City,
     units:  [dynamic]^Unit,
