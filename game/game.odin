@@ -81,11 +81,14 @@ start :: proc() {
     defer rl.UnloadTexture(textures.pop)
     textures.technology = rl.LoadTexture("Assets/Sprites/technology.jpg")
     defer rl.UnloadTexture(textures.technology)
+
+    shader := rl.LoadShader(nil, "Shaders/default.frag")
+
     
     for !rl.WindowShouldClose() {
 
         rl.BeginDrawing()
-        rl.ClearBackground(rl.GetColor(0x181818ff))
+        rl.BeginShaderMode(shader)
 
         lastMousePostion := mousePosition
         mousePosition = rl.GetMousePosition()
@@ -104,6 +107,7 @@ start :: proc() {
         updateWindowSize()
         handleScreenSpaceInput()
         handleWorldSpaceInput()
+        rl.EndShaderMode()
         rl.EndDrawing()
 
         free_all(context.temp_allocator)
