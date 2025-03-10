@@ -1,5 +1,6 @@
 package ui
 
+import "core:fmt"
 import "core:strings"
 import "core:math"
 import "core:math/linalg"
@@ -8,6 +9,7 @@ import rl "vendor:raylib"
 
 import shared "../shared"
 import tile "../tiles"
+import city "../cities"
 // import tech "../technologies"
 
 Color :: rl.Color
@@ -94,9 +96,9 @@ showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode,
 showBanners :: proc() {
     using shared
 
-    for &city, index in game.cities {
-        if !city.destroyed {
-            showBanner(&city, index)
+    for &c, index in game.cities {
+        if city.isVisibleToPlayer(&c) {
+            showBanner(&c, index)
         }
     }
     @(static) ps :[128]bool = {}
@@ -148,7 +150,7 @@ showSidebar :: proc(r: Rect) {
     index := 0
     for tech_id in game.playerFaction.techs {
         tech := &TechnologyManifest[tech_id]
-        for project in tech.projects {
+        item: for project in tech.projects {
             name: cstring 
             texture: rl.Texture  
             switch type in project {
@@ -157,6 +159,9 @@ showSidebar :: proc(r: Rect) {
                     texture = type.texture
                 }
                 case ^BuildingType: {
+                    for b in selectedCity.buildings {
+                        if b.type == type do continue item
+                    }
                     name = type.name
                     texture = type.texture
                 }
@@ -207,9 +212,10 @@ showBorders :: proc() {
 
     for faction in game.factions {
         for city in faction.cities {
-            assert(city.tiles != nil, "city tiles pointer was nil")
+            assert(city.tiles != nil)
             for tl in city.tiles {
-                assert(tl != nil, "tile pointer was nil")
+                if int(game.playerFaction.id) not_in tl.discovery_mask do continue
+                assert(tl != nil)
                 color := faction.type.primary_color
                 color.a = 128
                 rect := tile.getRect(tl)
@@ -232,6 +238,31 @@ showBorders :: proc() {
             }
         }
     }
+}
+
+showUnitBox :: proc(r: Rect) {
+    using shared
+    r := r
+
+    lower := chopRectangle(&r, r.height/4, .BOTTOM)
+    lower_left := chopRectangle(&lower, r.width/4, .LEFT)
+    showSprite(lower_left, selectedUnit.type.texture)
+}
+
+showPlayerStats :: proc() {
+    using shared, game
+
+    r := subRectangle(windowRect, 0, 0, windowDimensions.x, windowDimensions.y / 8)
+    r2 := subRectangle(r, 0.03, 0.25, windowDimensions.x * 0.97, windowDimensions.y / 16)
+    sb := strings.builder_make(context.temp_allocator)
+
+    fmt.sbprintf(&sb, "Science: %v", playerFaction.science)
+    showText(chopRectangle(&r2, windowDimensions.x/8, .LEFT), rl.WHITE, strings.to_cstring(&sb), .HALFWAY)
+    strings.builder_reset(&sb)
+
+    fmt.sbprintf(&sb, "Gold: %v", playerFaction.gold)
+    showText(chopRectangle(&r2, windowDimensions.x/8, .LEFT), rl.WHITE, strings.to_cstring(&sb), .HALFWAY)
+    strings.builder_reset(&sb)
 }
 
 chopRectangle :: proc(r: ^Rect, size: f32, side: enum{TOP, BOTTOM, LEFT, RIGHT}) -> Rect {

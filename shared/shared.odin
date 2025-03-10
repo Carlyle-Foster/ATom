@@ -44,6 +44,7 @@ UnitType :: struct {
     texture: rl.Texture,
     strength: i32,
     defense: i32,
+    stamina: i32,
     habitat: bit_set[MovementType],
     cost: i32,
 }
@@ -53,6 +54,7 @@ Unit :: struct {
     owner: ^Faction,
     tile: ^Tile,
     path: [dynamic]^Tile,
+    stamina: i32,
     renderer_id: int,
 }
 
@@ -63,9 +65,10 @@ UnitRendererList: [dynamic]UnitRenderer
 
 Terrain :: struct {
     name: cstring,
+    id: i32,
     yields: [YieldType]f32,
     movement_type: MovementType,
-    hue: f32,
+    spawn_rate: i32,
 }
 
 Tile :: struct {
@@ -74,8 +77,8 @@ Tile :: struct {
     resource: ResourceType,
     owner: ^City,
     units: [dynamic]^Unit,
-    discovery_mask: u64,
-    visibility_mask: u64,
+    discovery_mask: bit_set[0..<32],
+    visibility_mask: [32]u8,
     flags: bit_set[TileFlags],
 }
 
@@ -125,6 +128,7 @@ TextureManifest :: struct {
     valet: Texture,
     pop: Texture,
     technology: Texture,
+    tile_set: Texture,
 }
 
 YieldType :: enum i8 {

@@ -1,12 +1,12 @@
 package factions
 
 import "core:math/rand"
+import "core:math/linalg"
 import "core:container/small_array"
 
 import shared "../shared"
 import city "../cities"
 import unit "../units"
-import tile "../tiles"
 import pop "../pops"
 
 Faction :: shared.Faction
@@ -60,28 +60,25 @@ update :: proc(f: ^Faction) {
 doAiTurn :: proc(f: ^Faction) {
     using shared
 
-    count := 0
-    for len(f.cities) == 0 {
-        tile := tile.getRandom()
-        if tile.owner == nil && tile.terrain.movement_type == .LAND {
-            city.create(f, tile)
+    for u in f.units {
+        closest: i16
+        target: ^Tile
+        for c in shared.game.playerFaction.cities {
+            distance := linalg.vector_length2(c.location.coordinate - u.tile.coordinate)
+            if distance < closest || closest == {} {
+                closest = distance
+                target = c.location
+            }
         }
-        count += 1
-        if count > 100 do break
+        if closest != {} {
+            unit.sendToTile(u, target)
+        }
     }
     for city in f.cities {
         for &p, i in city.population {
             if p.state == .UNEMPLOYED && i < len(city.tiles) {
                 pop.employ(&p, city.tiles[i])
             }
-        }
-        for u in f.units {
-                target := u.tile.coordinate
-                target.x  += 1
-                tile := tile.get(target)
-                if tile != nil {
-                    unit.sendToTile(u, tile)
-                }
         }
         if len(city.location.units) == 0 && city.project == nil {
             surroundings: bit_set[MovementType]

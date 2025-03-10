@@ -37,9 +37,13 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
     for tl in tile.getInRadius(t, 1) {
         tile.claim(city, tl)
     }
+    for tl in tile.getInRadius(t, 7) {
+        tl.discovery_mask += {int(f.id)}
+    }
     t.flags += { .CONTAINS_CITY }
     city.population = { citizen.create(city) }
     city.renderer_id = rendering.createCityRenderer(city)
+    log.debug(city.location.discovery_mask)
     return city
 }
 
@@ -57,6 +61,12 @@ getPopCost :: proc(c: City) -> f32 {
     base := 10
     mult := 5
     return f32(base + len(c.population)*mult)
+}
+
+isVisibleToPlayer :: proc(using c: ^City) -> bool {
+    using shared
+
+    return int(game.playerFaction.id) in location.discovery_mask && !destroyed
 }
 
 update :: proc(c: ^City) {

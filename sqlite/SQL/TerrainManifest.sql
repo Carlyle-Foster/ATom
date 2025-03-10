@@ -5,12 +5,14 @@ CREATE TABLE "Terrain" (
 	"Science"	    INTEGER,
 	"Gold"	        INTEGER,
 	"MovementType"	TEXT,
-	"hue"			INTEGER,
+	"ID"			INTEGER, 
+	"SpawnRate"		INTEGER,
 	PRIMARY KEY("Name")
 );
 
-INSERT INTO "Terrain" (Name, Food, Production, Science, Gold, MovementType, hue)
+INSERT INTO "Terrain" (Name, Food, Production, Science, Gold, MovementType, ID, SpawnRate)
 VALUES
-("Desert", 0, 1, 0, 1, "land", 70),
-("Rainforest", 2, 0, 1, 1, "land", 120),
-("Shallows", 1, 0, 1, 0, "coast", 210);
+("rainforest", 2, 0, 1, 1, "land", 0, 400),
+("plains", 1, 1, 0, 0, "land", 1, 2000),
+("shallows", 1, 0, 1, 0, "coast", 2, 0),
+("desert", 0, 1, 0, 1, "land", 3, 400);

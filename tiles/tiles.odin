@@ -1,7 +1,6 @@
 package tiles
 
 import "core:math/rand"
-import "core:log"
 
 import shared "../shared"
 
@@ -27,7 +26,7 @@ create :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType
         resource = resource, 
         owner = nil, 
         units = nil, 
-        discovery_mask = 0, 
+        discovery_mask = {}, 
         visibility_mask = 0,
         flags = {},
     }
@@ -74,7 +73,6 @@ getRandom :: proc() -> ^Tile {
 
     x := rand.int_max(int(game.world.dimensions.x))
     y := rand.int_max(int(game.world.dimensions.y))
-    log.debug(x, y)
     return get(i32(x), i32(y))
 }
 

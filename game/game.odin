@@ -59,8 +59,20 @@ start :: proc() {
         map_height = 64, 
     )
     world.generate()
-    for &t in game.world.tiles {
-        t.discovery_mask |= 1 << game.playerFaction.id
+    // for &t in game.world.tiles {
+    //     t.discovery_mask += {int(game.playerFaction.id)}
+    // }
+
+    for &f in game.factions {
+        count := 0
+        for len(f.cities) == 0 {
+            tile := tile.getRandom()
+            if tile.owner == nil && tile.terrain.movement_type == .LAND {
+                city.create(&f, tile)
+            }
+            count += 1
+            assert(count < 1024)
+        }
     }
 
     cam = {
@@ -81,6 +93,8 @@ start :: proc() {
     defer rl.UnloadTexture(textures.pop)
     textures.technology = rl.LoadTexture("Assets/Sprites/technology.jpg")
     defer rl.UnloadTexture(textures.technology)
+    textures.tile_set = rl.LoadTexture("Assets/tileset-2.png")
+    defer rl.UnloadTexture(textures.tile_set)
 
     shader := rl.LoadShader(nil, "Shaders/default.frag")
 
@@ -195,6 +209,9 @@ handleInput_MAP :: proc() {
         if selectedCity != nil {
             showCityUI()
         }
+        if selectedUnit != nil {
+            ui.showUnitBox(windowRect)
+        }
     }
     worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / tileSize
     tileUnderMouse := tile.get(i32(worldMouse.x), i32(worldMouse.y))
@@ -247,6 +264,7 @@ handleInput_MAP :: proc() {
     if rl.IsKeyPressed(.T) {
         currentUIState = .TECH
     }
+    ui.showPlayerStats()
     p2 = false
 }
 
@@ -262,10 +280,13 @@ nextTurn :: proc() {
     using shared
 
     if game.playerFaction.research_project.id == -1 {
-        currentUIState = .TECH
-        return
+        for tech in TechnologyManifest {
+            if tech.id not_in game.playerFaction.techs {
+                currentUIState = .TECH
+                return
+            }
+        }
     }
-
     for &city in game.playerFaction.cities {
         if city.project == nil {
             selectedCity = city

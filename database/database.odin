@@ -131,15 +131,18 @@ generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
         using strconv
         context = runtime.default_context()
 
-        assert(rows == 7)
+        assert(rows == 8)
         name := strings.clone_to_cstring(string(values[0]))
         food, ok1 := parse_f32(string(values[1]))
         production, ok2 := parse_f32(string(values[2]))
         science, ok3 := parse_f32(string(values[3]))
         gold, ok4 := parse_f32(string(values[4]))
         movement_type, ok5 := parseMovementType(string(values[5]))
-        hue, ok6 := parse_f32(string(values[6]))
-        assert(ok1 && ok2 && ok3 && ok4 && ok5 && ok6)
+        _ID, ok6 := parse_int(string(values[6]))
+        ID := i32(_ID)
+        _spawn_rate, ok7 := parse_int(string(values[7]))
+        spawn_rate := i32(_spawn_rate)
+        assert(ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7)
         yields : [YieldType]f32 = {
             .FOOD = food, 
             .PRODUCTION = production, 
@@ -149,9 +152,10 @@ generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
         log.debug(name)
         append(&shared.TerrainManifest, (Terrain){
                 name, 
+                ID, 
                 yields,
                 movement_type, 
-                hue,
+                spawn_rate, 
             },
         )
         return 0
@@ -167,19 +171,21 @@ generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
         using strconv
         context = runtime.default_context()
 
-        assert(rows == 6)
+        assert(rows == 7)
         name := strings.clone_to_cstring(string(values[0]))
         texture := rl.LoadTexture(values[1])
         strength, ok1 := parse_int(string(values[2]))
         defense, ok2 := parse_int(string(values[3]))
-        habitat, ok3 := parseHabitat(string(values[4]))
-        cost, ok4 := parse_int(string(values[5]))
-        assert(ok1 && ok2 && ok3 && ok4)
+        stamina, ok3 := parse_int(string(values[4]))
+        habitat, ok4 := parseHabitat(string(values[5]))
+        cost, ok5 := parse_int(string(values[6]))
+        assert(ok1 && ok2 && ok3 && ok4 && ok5)
         ut := UnitType{
             name, 
             texture,
             i32(strength),
-            i32(defense), 
+            i32(defense),
+            i32(stamina), 
             habitat,
             i32(cost),
         }

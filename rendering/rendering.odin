@@ -1,5 +1,4 @@
 package rendering
-
 import rl "vendor:raylib"
 import rlx "../rlx"
 
@@ -18,9 +17,22 @@ gameMap :: proc() {
     for y in 0..<i32(game.world.dimensions.y) {
         for x in 0..<i32(game.world.dimensions.x) {
             t := tile.get(x, y)
-            c := rl.ColorFromHSV(t.terrain.hue, 0.65, 1)
-            if t.discovery_mask & (1 << game.playerFaction.id) > 0 {
-                rl.DrawRectangle(x*size, y*size, size, size, c)
+            if int(game.playerFaction.id) in t.discovery_mask {
+                sizef := f32(size)
+                xf, yf := f32(x), f32(y)
+                offset_unit: f32 = 128
+                offset := offset_unit*f32(t.terrain.id)
+                source := Rect{
+                    offset, 0,
+                    offset_unit, offset_unit, 
+                }
+                dest := Rect{
+                    xf*sizef, yf*sizef,
+                    sizef, sizef,
+                }
+                rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, rl.WHITE)
+            } else {
+                rl.DrawRectangle(x*size, y*size, size, size, rl.GRAY)
             }
         }
     }
@@ -41,7 +53,7 @@ createCityRenderer :: proc(c: ^City) -> (renderer_id: int) {
 
 renderCity :: proc(using cr: CityRenderer) {
     using shared
-    if !city.destroyed {
+    if int(game.playerFaction.id) in city.location.discovery_mask && !city.destroyed {
         rlx.drawAtopTile(textures.city, city.location)
     }
 }
@@ -55,7 +67,9 @@ createUnitRenderer :: proc(u: ^Unit) -> (renderer_id: int) {
 
 renderUnit :: proc(using ur: UnitRenderer) {
     using shared
-    rlx.drawAtopTile(unit.type.texture, unit.tile)
+    if int(game.playerFaction.id) in unit.tile.discovery_mask {
+        rlx.drawAtopTile(unit.type.texture, unit.tile)
+    }
 }
 
 pops :: proc() {

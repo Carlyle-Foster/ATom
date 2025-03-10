@@ -19,7 +19,7 @@ Tile :: shared.Tile
 create :: proc(ut: ^UnitType, f: ^Faction, t: ^Tile) {
     using shared
 
-    append(&game.units, Unit{ut, f, t, {}, -1})
+    append(&game.units, Unit{ut, f, t, {}, ut.stamina, -1})
     new_unit := &game.units[len(game.units) - 1] 
     append(&f.units, new_unit)
     entered(new_unit, t)
@@ -28,14 +28,19 @@ create :: proc(ut: ^UnitType, f: ^Faction, t: ^Tile) {
 }
 
 update :: proc(u: ^Unit) {
-    if len(u.path) > 0 {
+    u.stamina = u.type.stamina
+    advance(u)
+}
+
+advance :: proc(u: ^Unit) {
+    for ; u.stamina > 0 && len(u.path) > 0; u.stamina -= 1 {
         for unit, index in u.tile.units {
             if unit == u {
                 unordered_remove(&u.tile.units, index)
             }
         }
         u.tile = pop(&u.path, )
-        append(&u.tile.units, u)
+        entered(u, u.tile)
     }
 }
 
@@ -44,12 +49,13 @@ sendToTile :: proc(u: ^Unit, t: ^Tile) {
     for tile in u.path {
         log.debug(tile.coordinate.x, tile.coordinate.y)
     }
+    advance(u)
 }
 
 entered :: proc(u: ^Unit, t: ^Tile) {
     append(&t.units, u)
-    visibility: i16 = 5
+    visibility: i16 = 2
     for tl in tile.getInRadius(t, visibility) {
-        tl.discovery_mask = 1
+        tl.discovery_mask += {int(u.owner.id)}
     }
 }
