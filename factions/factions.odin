@@ -10,6 +10,8 @@ import unit "../units"
 import pop "../pops"
 
 Faction :: shared.Faction
+City :: shared.City
+Tile :: shared.Tile
 
 generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
     using shared
@@ -77,7 +79,8 @@ doAiTurn :: proc(f: ^Faction) {
     for city in f.cities {
         for &p, i in city.population {
             if p.state == .UNEMPLOYED && i < len(city.tiles) {
-                pop.employ(&p, city.tiles[i])
+                chosen := chooseTileToWork(f, city)
+                pop.employ(&p, chosen)
             }
         }
         if len(city.location.units) == 0 && city.project == nil {
@@ -98,4 +101,24 @@ doAiTurn :: proc(f: ^Faction) {
             }
         }
     }
+}
+
+chooseTileToWork :: proc(f: ^Faction, c: ^City) -> ^Tile {
+    using shared
+
+    chosen: ^Tile
+    high_score := 0
+    
+    for t in c.tiles {
+        if t.flags & {.WORKED, .CONTAINS_CITY} != nil do continue
+        
+        score := 0
+        for y in YieldType {
+            score += int(t.terrain.yields[y])
+            if score > high_score {
+                chosen, high_score = t, score
+            }
+        }
+    }
+    return chosen
 }

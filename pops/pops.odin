@@ -13,7 +13,13 @@ create :: proc(c: ^City) -> Pop {
 }
 
 employ :: proc(p: ^Pop, t: ^Tile) {
+    if t.flags & {.WORKED, .CONTAINS_CITY} != nil do return
+
+    if p.tile != nil {
+        p.tile.flags -= {.WORKED}
+    }
     p.tile = t
     p.state = .WORKING
+    t.flags += {.WORKED}
 }
 

@@ -32,6 +32,8 @@ create :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType
     }
 }
 
+get :: proc{getByCoordinates, getDestructured}
+
 getDestructured ::proc(x, y: i32) -> ^Tile {
     using shared
 
@@ -64,8 +66,6 @@ claim :: proc(c: ^City, t: ^Tile) {
         append(&c.tiles, t)
     }
 }
-
-get :: proc{getByCoordinates, getDestructured}
 
 getRandom :: proc() -> ^Tile {
     using shared

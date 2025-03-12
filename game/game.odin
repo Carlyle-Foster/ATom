@@ -105,6 +105,8 @@ start :: proc() {
         rl.BeginDrawing()
         rl.BeginShaderMode(shader)
 
+        rl.DrawRectangleV({0, 0}, windowDimensions, rl.BLACK)
+
         lastMousePostion := mousePosition
         mousePosition = rl.GetMousePosition()
         mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
@@ -337,16 +339,26 @@ updateCamera :: proc() {
         }
         old_target := cam.target
         cam.target -= mouseMovement
-        if  canCameraSeeOutside() {
+        if cameraLookingOutside() {
             cam.target = old_target
         }
         camNoZoom.target = cam.target
     }
     old_zoom := cam.zoom
     cam.zoom += rl.GetMouseWheelMoveV().y / 12.0
-    if canCameraSeeOutside() {
+    if cameraLookingOutside() {
         cam.zoom = old_zoom
     }
+}
+
+cameraLookingOutside :: proc() -> bool {
+    using shared
+
+    world_dimension := Vector2{f32(game.world.dimensions.x)*tileSize, f32(game.world.dimensions.y)*tileSize}
+    x_edge := min(cam.target.x, world_dimension.x - cam.target.x)
+    y_edge := min(cam.target.y, world_dimension.y - cam.target.y)
+
+    return x_edge < 0 || y_edge < 0
 }
 
 drawTechScreen :: proc(r: Rect) {
@@ -356,16 +368,6 @@ drawTechScreen :: proc(r: Rect) {
     source_rect := Rect{0, 0, length, f32(textures.technology.height)}
     rl.DrawTexturePro(textures.technology, source_rect, windowRect, Vector2{0, 0}, 0, rl.GRAY)
     tech.drawTree(windowRect)
-}
-
-canCameraSeeOutside :: proc() -> bool {
-    using shared
-
-    world_dimension := Vector2{f32(game.world.dimensions.x)*tileSize, f32(game.world.dimensions.y)*tileSize}
-    real_window := windowDimensions / cam.zoom
-    x_edge := min(cam.target.x, world_dimension.x - cam.target.x)
-    y_edge := min(cam.target.y, world_dimension.y - cam.target.y)
-    return x_edge < real_window.x/2 || y_edge < real_window.y/2
 }
 
 centerCamera :: proc(t: Tile) {

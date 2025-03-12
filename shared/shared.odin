@@ -84,6 +84,7 @@ Tile :: struct {
 
 TileFlags :: enum {
     CONTAINS_CITY,
+    WORKED,
 }
 
 MovementType :: enum {

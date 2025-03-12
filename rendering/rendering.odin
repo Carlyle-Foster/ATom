@@ -33,7 +33,9 @@ gameMap :: proc() {
                 xf*sizef, yf*sizef,
                 sizef, sizef,
             }
-            rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, rl.WHITE)
+            tint := rl.WHITE
+            // if .WORKED in t.flags { tint = rl.RED }
+            rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, tint)
         }
     }
     for cr in CityRendererList {

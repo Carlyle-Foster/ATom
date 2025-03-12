@@ -44,7 +44,6 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
     t.flags += { .CONTAINS_CITY }
     city.population = { citizen.create(city) }
     city.renderer_id = rendering.createCityRenderer(city)
-    log.debug(city.location.discovery_mask)
     return city
 }
 
