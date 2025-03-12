@@ -264,7 +264,11 @@ handleInput_MAP :: proc() {
     if rl.IsKeyPressed(.T) {
         currentUIState = .TECH
     }
+    if rl.IsKeyPressed(.A) {
+        nextTurn(automate_player_turn = true)
+    }
     ui.showPlayerStats()
+    ui.showCurrentTurn()
     p2 = false
 }
 
@@ -276,35 +280,39 @@ handleInput_TECH :: proc() {
     }
 }
 
-nextTurn :: proc() {
+nextTurn :: proc(automate_player_turn := false) {
     using shared
 
-    if game.playerFaction.research_project.id == -1 {
-        for tech in TechnologyManifest {
-            if tech.id not_in game.playerFaction.techs {
-                currentUIState = .TECH
+    if !automate_player_turn {
+        if game.playerFaction.research_project.id == -1 {
+            for tech in TechnologyManifest {
+                if tech.id not_in game.playerFaction.techs {
+                    currentUIState = .TECH
+                    return
+                }
+            }
+        }
+        for &city in game.playerFaction.cities {
+            if city.project == nil {
+                selectedCity = city
+                city_plot := tile.getRect(city.location)
+                target := Vector2{city_plot.x + city_plot.width/2, city_plot.y + city_plot.height/2} 
+                cam.target = target
                 return
             }
         }
+        faction.update(game.playerFaction)
     }
-    for &city in game.playerFaction.cities {
-        if city.project == nil {
-            selectedCity = city
-            city_plot := tile.getRect(city.location)
-            target := Vector2{city_plot.x + city_plot.width/2, city_plot.y + city_plot.height/2} 
-            cam.target = target
-            return
-        }
-    }
-    log.info("turn")
 
     for &f in game.factions {
-        if f.id != game.playerFaction.id {
-            faction.update(&f)
+        if f.id != game.playerFaction.id || automate_player_turn {
             faction.doAiTurn(&f)
+            faction.update(&f)
         }
     }
-    faction.update(game.playerFaction)
+    
+    log.info("turn", turn, "ended")
+    turn += 1
 }
 
 initAudio :: proc() {

@@ -94,6 +94,8 @@ MovementType :: enum {
     CITY,
 }
 
+turn: int = 0
+
 windowDimensions := Vector2{1280, 720}
 
 windowRect: Rect = {}

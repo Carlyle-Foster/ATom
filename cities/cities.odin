@@ -2,6 +2,7 @@ package cities
 
 import "core:log"
 import "core:strings"
+import "core:math"
 
 import shared "../shared"
 import unit "../units"
@@ -75,6 +76,7 @@ update :: proc(c: ^City) {
     yields: [YieldType]f32
     multipliers: [YieldType]f32 = {.FOOD=1, .PRODUCTION=1, .SCIENCE=1, .GOLD=1}
     yields += c.location.terrain.yields
+    yields[.FOOD] = math.max(yields[.FOOD], 2) // the base tile thus always provides at least 2 food
     for p in c.population {
         if p.state == .WORKING {
             yields += p.tile.terrain.yields
