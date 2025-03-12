@@ -32,7 +32,8 @@ gameMap :: proc() {
                 }
                 rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, rl.WHITE)
             } else {
-                rl.DrawRectangle(x*size, y*size, size, size, rl.GRAY)
+                c := (x  % 2) == 0 ? rl.GRAY : rl.RAYWHITE
+                rl.DrawRectangle(x*size, y*size, size, size, c)
             }
         }
     }
