@@ -20,6 +20,7 @@ import tech "../technologies"
 Faction :: shared.Faction
 GameState :: shared.GameState
 Rect :: shared.Rect
+Tile :: shared.Tile
 
 initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> GameState {
     using shared
@@ -82,6 +83,7 @@ start :: proc() {
         zoom = 1.0,
     }
     camNoZoom = cam
+    centerCamera(game.playerFaction.cities[0].location^)
 
     log.debug(TechnologyManifest)
 
@@ -294,9 +296,7 @@ nextTurn :: proc(automate_player_turn := false) {
         for &city in game.playerFaction.cities {
             if city.project == nil {
                 selectedCity = city
-                city_plot := tile.getRect(city.location)
-                target := Vector2{city_plot.x + city_plot.width/2, city_plot.y + city_plot.height/2} 
-                cam.target = target
+                centerCamera(city.location^)
                 return
             }
         }
@@ -368,8 +368,16 @@ canCameraSeeOutside :: proc() -> bool {
     return x_edge < real_window.x/2 || y_edge < real_window.y/2
 }
 
+centerCamera :: proc(t: Tile) {
+    using shared
+
+    r := tile.getRect(t)
+    cam.target = {r.x + r.width/2, r.y + r.height/2}
+}
+
 unloadAssets :: proc() {
     using shared
+    
     for unit_type in UnitTypeManifest {
         rl.UnloadTexture(unit_type.texture)
     }

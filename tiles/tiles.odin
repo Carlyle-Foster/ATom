@@ -76,7 +76,7 @@ getRandom :: proc() -> ^Tile {
     return get(i32(x), i32(y))
 }
 
-getRect :: proc(t: ^Tile) -> Rect {
+getRect :: proc(t: Tile) -> Rect {
     using shared
 
     r := Rect {

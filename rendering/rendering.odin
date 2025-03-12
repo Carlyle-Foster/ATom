@@ -23,7 +23,7 @@ gameMap :: proc() {
             offset := offset_unit*f32(t.terrain.id)
             if int(game.playerFaction.id) not_in t.discovery_mask {
                 offset = 0
-                sizef *= 3
+                // sizef *= 3
             }
             source := Rect{
                 offset, 0,
@@ -54,7 +54,7 @@ createCityRenderer :: proc(c: ^City) -> (renderer_id: int) {
 renderCity :: proc(using cr: CityRenderer) {
     using shared
     if int(game.playerFaction.id) in city.location.discovery_mask && !city.destroyed {
-        rlx.drawAtopTile(textures.city, city.location)
+        rlx.drawAtopTile(textures.city, city.location^)
     }
 }
 
@@ -68,7 +68,7 @@ createUnitRenderer :: proc(u: ^Unit) -> (renderer_id: int) {
 renderUnit :: proc(using ur: UnitRenderer) {
     using shared
     if int(game.playerFaction.id) in unit.tile.discovery_mask {
-        rlx.drawAtopTile(unit.type.texture, unit.tile)
+        rlx.drawAtopTile(unit.type.texture, unit.tile^)
     }
 }
 
@@ -78,7 +78,7 @@ pops :: proc() {
         for pop in selectedCity.population {
             transparent :: Color{255,255,255,128}
             tint := pop.state == .WORKING ? rl.WHITE : transparent
-            rlx.drawAtopTile(textures.pop, pop.tile,  tint)
+            rlx.drawAtopTile(textures.pop, pop.tile^,  tint)
         }
     }
 }

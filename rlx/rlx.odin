@@ -9,7 +9,7 @@ Texture :: shared.Texture
 Rect :: shared.Rect
 Tile :: shared.Tile
 
-drawAtopTile :: proc(tx: Texture, tl: ^Tile, tint := rl.WHITE) {
+drawAtopTile :: proc(tx: Texture, tl: Tile, tint := rl.WHITE) {
     using shared
 
     source := Rect{0, 0, f32(tx.width), f32(tx.height)}

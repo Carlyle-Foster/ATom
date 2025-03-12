@@ -69,7 +69,7 @@ showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, back
 
     font_size := i32(rect.height)
     text_width := rl.MeasureText(text, font_size)
-    for text_width > i32(rect.width) {
+    for text_width > i32(rect.width) && font_size >= 0 {
         font_size -= 1
         text_width = rl.MeasureText(text, font_size)
     }
@@ -218,7 +218,7 @@ showBorders :: proc() {
                 assert(tl != nil)
                 color := faction.type.primary_color
                 color.a = 128
-                rect := tile.getRect(tl)
+                rect := tile.getRect(tl^)
                 showRect(rect, color)
                 center := Vector2{rect.x + rect.width/2, rect.y + rect.height/2}
                 color = faction.type.secondary_color
@@ -226,7 +226,7 @@ showBorders :: proc() {
                 for direction in OrthogonalDirections {
                     neighbor := tile.get(tl.coordinate + direction)
                     if neighbor != nil && (neighbor.owner == nil || neighbor.owner.owner == nil || neighbor.owner.owner.id != faction.id) {
-                        nrect := tile.getRect(neighbor)
+                        nrect := tile.getRect(neighbor^)
                         target := Vector2{nrect.x + nrect.width/2, nrect.y + nrect.height/2}
                         edge := (target - center) / 2
                         offset := edge * linalg.matrix2_rotate_f32(math.PI/2)
