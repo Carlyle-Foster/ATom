@@ -97,7 +97,6 @@ start :: proc() {
     defer rl.UnloadTexture(textures.tile_set)
 
     shader := rl.LoadShader(nil, "Shaders/default.frag")
-
     
     for !rl.WindowShouldClose() {
 

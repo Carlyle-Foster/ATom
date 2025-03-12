@@ -14,27 +14,26 @@ gameMap :: proc() {
     using shared
 
     size := i32(tileSize)
+    offset_unit: f32 = 128
     for y in 0..<i32(game.world.dimensions.y) {
         for x in 0..<i32(game.world.dimensions.x) {
             t := tile.get(x, y)
-            if int(game.playerFaction.id) in t.discovery_mask {
-                sizef := f32(size)
-                xf, yf := f32(x), f32(y)
-                offset_unit: f32 = 128
-                offset := offset_unit*f32(t.terrain.id)
-                source := Rect{
-                    offset, 0,
-                    offset_unit, offset_unit, 
-                }
-                dest := Rect{
-                    xf*sizef, yf*sizef,
-                    sizef, sizef,
-                }
-                rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, rl.WHITE)
-            } else {
-                c := (x  % 2) == 0 ? rl.GRAY : rl.RAYWHITE
-                rl.DrawRectangle(x*size, y*size, size, size, c)
+            sizef := f32(size)
+            xf, yf := f32(x), f32(y)
+            offset := offset_unit*f32(t.terrain.id)
+            if int(game.playerFaction.id) not_in t.discovery_mask {
+                offset = 0
+                sizef *= 3
             }
+            source := Rect{
+                offset, 0,
+                offset_unit, offset_unit, 
+            }
+            dest := Rect{
+                xf*sizef, yf*sizef,
+                sizef, sizef,
+            }
+            rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, rl.WHITE)
         }
     }
     for cr in CityRendererList {
