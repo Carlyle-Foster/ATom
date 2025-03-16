@@ -4,6 +4,59 @@ import "core:encoding/json"
 
 import rl "vendor:raylib"
 
+HandledArray :: struct(T: typeid) {
+    _inner: [dynamic]HandledData(T),
+    vacancies: [dynamic]i16,
+}
+HandledData :: struct(T: typeid) {
+    generation: i16,
+    _inner: T,
+}
+Handle :: struct(T: typeid) {
+    generation, index: i16,
+}
+makeHandledArray :: proc($T: typeid, capacity: i16 = 16) -> HandledArray(T) {
+    return {
+        _inner = make([dynamic]HandledData(T), 0, capacity),
+        vacancies = make([dynamic]i16, 0, capacity),
+    }
+}
+handleRetrieve :: proc(ha: ^HandledArray($T), h: Handle(T)) -> Maybe(^T) {
+    a := &ha._inner
+
+    if h.index >= i16(len(a)) { return nil }
+
+    result := &a[h.index]
+    if h.generation != result.generation { return nil }
+    else { return &result._inner }
+}
+handlePush :: proc(ha: ^HandledArray($T), item: T) -> Handle(T) {
+    a := &ha._inner
+    v := &ha.vacancies
+
+    i: i16
+    if len(v) > 0 {
+        i = pop(v)
+        a[i].generation *= -1
+        a[i]._inner = item
+        return {a[i].generation, i}
+    } else {
+        i = i16(len(a))
+        append(a, HandledData(T){0, item})
+        return {0, i}
+    }
+}
+handleRemove :: proc(ha: ^HandledArray($T), index: i16) -> T {
+    a := &ha._inner
+    v := &ha.vacancies
+
+    a[index].generation += 1
+    a[index].generation *= -1
+    append(v, index)
+    
+    return a[index]._inner
+}
+
 uiState :: enum {
     MAP,
     TECH,
@@ -14,7 +67,7 @@ GameState :: struct {
     world: World,
     factions: [dynamic]Faction,
     cities: [dynamic]City,
-    units: [dynamic]Unit,
+    units: HandledArray(Unit),
     playerFaction: ^Faction,
 }
 game: GameState
@@ -33,12 +86,6 @@ City :: struct {
     renderer_id: int,
 }
 
-CityRenderer :: struct {
-    city: ^City,
-    was_clicked: bool, 
-}
-CityRendererList: [dynamic]CityRenderer
-
 UnitType :: struct {
     name: cstring,
     texture: rl.Texture,
@@ -55,13 +102,12 @@ Unit :: struct {
     tile: ^Tile,
     path: [dynamic]^Tile,
     stamina: i32,
-    renderer_id: int,
+    renderer: UnitRenderer,
 }
 
 UnitRenderer :: struct {
     unit: ^Unit,
 }
-UnitRendererList: [dynamic]UnitRenderer
 
 Terrain :: struct {
     name: cstring,
@@ -207,7 +253,7 @@ Faction :: struct {
     type: ^FactionType,
     id: u32,
     cities: [dynamic]^City,
-    units:  [dynamic]^Unit,
+    units:  [dynamic]Handle(Unit),
     gold: f32,
     science: f32,
     techs: bit_set[0..<MAX_TECHS],

@@ -9,7 +9,6 @@ import unit "../units"
 import tile "../tiles"
 import citizen "../pops"
 import project "../projects"
-import rendering "../rendering"
 
 City :: shared.City
 BuildingType :: shared.BuildingType
@@ -43,7 +42,6 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
     }
     t.flags += { .CONTAINS_CITY }
     city.population = { citizen.create(city) }
-    city.renderer_id = rendering.createCityRenderer(city)
     return city
 }
 

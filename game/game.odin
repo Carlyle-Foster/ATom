@@ -30,7 +30,7 @@ initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> 
         world = world.initialize(map_width, map_height, TerrainManifest[0]),
         factions = factions,
         cities = make([dynamic]City, 0, 1024*2),
-        units = make([dynamic]Unit, 0, 1024*8),
+        units = makeHandledArray(Unit, 1024*8),
         playerFaction = &factions[0],
     }
 }

@@ -28,7 +28,7 @@ generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
             type = faction_type,
             id = u32(id),
             cities = make([dynamic]^City, 0, 1024*1),
-            units = make([dynamic]^Unit, 0, 1024*4),
+            units = make([dynamic]Handle(Unit), 0, 1024*4),
             gold = 0.0,
             techs = { 0 }, //this is the always the first tech listed in TechnologyManifest.sql
             research_project = {id = -1},
@@ -45,10 +45,13 @@ generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
 }
 
 update :: proc(f: ^Faction) {
+    using shared
+
     for c in f.cities {
         city.update(c)
     }
-    for u in f.units {
+    for uh in f.units {
+        u := handleRetrieve(&game.units, uh).? or_continue
         unit.update(u)
     }
     tech_cost := f32(f.research_project.cost)
@@ -62,17 +65,19 @@ update :: proc(f: ^Faction) {
 doAiTurn :: proc(f: ^Faction) {
     using shared
 
-    for u in f.units {
-        closest: i16
+    for uh in f.units {
+        u := handleRetrieve(&game.units, uh).? or_continue
+        i16_max :: 1 << 14
+        closest: i16 = i16_max
         target: ^Tile
         for c in shared.game.playerFaction.cities {
             distance := linalg.vector_length2(c.location.coordinate - u.tile.coordinate)
-            if distance < closest || closest == {} {
+            if distance < closest {
                 closest = distance
                 target = c.location
             }
         }
-        if closest != {} {
+        if closest != i16_max {
             unit.sendToTile(u, target)
         }
     }

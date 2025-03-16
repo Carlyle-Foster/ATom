@@ -5,9 +5,10 @@ import rlx "../rlx"
 import shared "../shared"
 import tile "../tiles"
 
+
+Handle :: shared.Handle
 City :: shared.City
 Unit :: shared.Unit
-CityRenderer :: shared.CityRenderer
 UnitRenderer :: shared.UnitRenderer
 
 gameMap :: proc() {
@@ -38,33 +39,25 @@ gameMap :: proc() {
             rl.DrawTexturePro(textures.tile_set, source, dest, Vector2{0,0}, 0, tint)
         }
     }
-    for cr in CityRendererList {
-        renderCity(cr)
+    for c in game.cities {
+        renderCity(c)
     }
-    for ur in UnitRendererList {
-        renderUnit(ur)
+    for u in game.units._inner {
+        if u.generation >= 0 {
+            renderUnit(u._inner.renderer)
+        }
     }
 }
 
-createCityRenderer :: proc(c: ^City) -> (renderer_id: int) {
-    using shared
-    append(&CityRendererList, CityRenderer{c, false})
-    renderer_id = len(CityRendererList) - 1
-    return
-}
-
-renderCity :: proc(using cr: CityRenderer) {
+renderCity :: proc(city: City) {
     using shared
     if int(game.playerFaction.id) in city.location.discovery_mask && !city.destroyed {
         rlx.drawAtopTile(textures.city, city.location^)
     }
 }
 
-createUnitRenderer :: proc(u: ^Unit) -> (renderer_id: int) {
-    using shared
-    append(&UnitRendererList, UnitRenderer{u})
-    renderer_id = len(UnitRendererList) - 1
-    return
+createUnitRenderer :: proc(unit: ^Unit) {
+    unit.renderer = UnitRenderer{unit}
 }
 
 renderUnit :: proc(using ur: UnitRenderer) {
