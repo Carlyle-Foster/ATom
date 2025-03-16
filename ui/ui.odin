@@ -240,13 +240,15 @@ showBorders :: proc() {
     }
 }
 
-showUnitBox :: proc(r: Rect) {
+showUnitBoxIfNecessary :: proc(r: Rect) {
     using shared
     r := r
 
-    lower := chopRectangle(&r, r.height/4, .BOTTOM)
-    lower_left := chopRectangle(&lower, r.width/4, .LEFT)
-    showSprite(lower_left, selectedUnit.type.texture)
+    if selected, ok := handleRetrieve(&game.units, selectedUnit).?; ok {
+        lower := chopRectangle(&r, r.height/4, .BOTTOM)
+        lower_left := chopRectangle(&lower, r.width/4, .LEFT)
+        showSprite(lower_left, selected.type.texture)
+    } 
 }
 
 showPlayerStats :: proc() {

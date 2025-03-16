@@ -212,9 +212,7 @@ handleInput_MAP :: proc() {
         if selectedCity != nil {
             showCityUI()
         }
-        if selectedUnit != nil {
-            ui.showUnitBox(windowRect)
-        }
+        ui.showUnitBoxIfNecessary(windowRect)
     }
     worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / tileSize
     tileUnderMouse := tile.get(i32(worldMouse.x), i32(worldMouse.y))
@@ -251,12 +249,12 @@ handleInput_MAP :: proc() {
         }
         if !click_consumed {
             selectedCity = nil
-            selectedUnit = nil
+            selectedUnit = invalidHandle(Unit)
         }
     }
     else if rl.IsMouseButtonPressed(.RIGHT) && tileUnderMouse != nil {
-        if selectedUnit != nil {
-            if selectedUnit.tile != tileUnderMouse {
+        if selected, ok := handleRetrieve(&game.units, selectedUnit).?; ok {
+            if selected.tile != tileUnderMouse {
                 unit.sendToTile(selectedUnit, tileUnderMouse)
             }
         }

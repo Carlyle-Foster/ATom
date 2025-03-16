@@ -8,7 +8,7 @@ import pathing "../pathing"
 import tile "../tiles"
 import rendering "../rendering"
 
-
+Handle :: shared.Handle
 Unit :: shared.Unit
 UnitType :: shared.UnitType
 UnitRenderer :: shared.UnitRenderer
@@ -25,48 +25,62 @@ create :: proc(ut: ^UnitType, f: ^Faction, t: ^Tile) {
     new_unit := handlePush(&game.units, Unit{ut, f, t, {}, ut.stamina, {}})
     append(&f.units, new_unit)
     unit := handleRetrieve(&game.units, new_unit).? or_else unreachable()
-    entered(unit, t)
+    entered(new_unit, t)
     rendering.createUnitRenderer(unit)
     log.info("new unit: ", new_unit)
 }
 
-update :: proc(u: ^Unit) {
+update :: proc(uh: Handle(Unit)) {
+    using shared
+    u := handleRetrieve(&game.units, uh).? or_else unreachable()
+
     u.stamina = u.type.stamina
-    advance(u)
+    advance(uh)
 }
 
-advance :: proc(u: ^Unit) {
+advance :: proc(uh: Handle(Unit)) {
+    using shared
+    u := handleRetrieve(&game.units, uh).? or_else unreachable()
     for ; u.stamina > 0 && len(u.path) > 0; u.stamina -= 1 {
-        for unit, index in u.tile.units {
-            if unit == u {
+        for handle, index in u.tile.units {
+            if handle == uh {
                 unordered_remove(&u.tile.units, index)
             }
         }
         u.tile = pop(&u.path, )
-        entered(u, u.tile)
+        entered(uh, u.tile)
     }
 }
 
-sendToTile :: proc(u: ^Unit, t: ^Tile) {
+sendToTile :: proc(uh: Handle(Unit), t: ^Tile) {
+    using shared
+    u := handleRetrieve(&game.units, uh).? or_else unreachable()
+
     u.path = pathing.find(u.tile, t, u)
     for tile in u.path {
         log.debug(tile.coordinate.x, tile.coordinate.y)
     }
-    advance(u)
+    advance(uh)
 }
 
-entered :: proc(u: ^Unit, t: ^Tile) {
-    for mb_enemy in t.units {
+entered :: proc(uh: Handle(Unit), t: ^Tile) {
+    using shared
+
+    u := handleRetrieve(&game.units, uh).? or_else unreachable()
+    for h in t.units {
+        mb_enemy := handleRetrieve(&game.units, h).? or_else unreachable()
         if mb_enemy.owner == u.owner do continue
         odds := calculateBattleOdds(u^, mb_enemy^)
         roll := rand.float32()
-        if roll <= odds {
-            unimplemented()
-        } else {
-            unimplemented()
+        if roll <= odds { // we win
+            handleRemove(&game.units, h)
+            log.debug("ATTACKERS WON")
+        } else { // we lose
+            handleRemove(&game.units, uh)
+            log.debug("DEFENDERS WON")
         }
     }
-    append(&t.units, u)
+    append(&t.units, uh)
     visibility: i16 = 2
     for tl in tile.getInRadius(t, visibility) {
         tl.discovery_mask += {int(u.owner.id)}

@@ -15,6 +15,9 @@ HandledData :: struct(T: typeid) {
 Handle :: struct(T: typeid) {
     generation, index: i16,
 }
+invalidHandle :: proc($T: typeid) -> Handle(T) { return {-1, -1} }
+handleValid :: proc(h: Handle($T)) -> bool { return h.index >= 0 }
+
 makeHandledArray :: proc($T: typeid, capacity: i16 = 16) -> HandledArray(T) {
     return {
         _inner = make([dynamic]HandledData(T), 0, capacity),
@@ -24,7 +27,7 @@ makeHandledArray :: proc($T: typeid, capacity: i16 = 16) -> HandledArray(T) {
 handleRetrieve :: proc(ha: ^HandledArray($T), h: Handle(T)) -> Maybe(^T) {
     a := &ha._inner
 
-    if h.index >= i16(len(a)) { return nil }
+    if (h.index >= i16(len(a))) || (h.index < 0) { return nil }
 
     result := &a[h.index]
     if h.generation != result.generation { return nil }
@@ -46,15 +49,20 @@ handlePush :: proc(ha: ^HandledArray($T), item: T) -> Handle(T) {
         return {0, i}
     }
 }
-handleRemove :: proc(ha: ^HandledArray($T), index: i16) -> T {
+handleRemove :: proc(ha: ^HandledArray($T), h: Handle(T)) -> Maybe(T) {
     a := &ha._inner
     v := &ha.vacancies
 
-    a[index].generation += 1
-    a[index].generation *= -1
-    append(v, index)
+    item := &a[h.index]
+    if item.generation == h.generation {
+        item.generation += 1
+        item.generation *= -1
+        append(v, h.index)
+        return item._inner
+    } else {
+        return nil
+    }
     
-    return a[index]._inner
 }
 
 uiState :: enum {
@@ -122,7 +130,7 @@ Tile :: struct {
     terrain: ^Terrain,
     resource: ResourceType,
     owner: ^City,
-    units: [dynamic]^Unit,
+    units: [dynamic]Handle(Unit),
     discovery_mask: bit_set[0..<32],
     visibility_mask: [32]u8,
     flags: bit_set[TileFlags],
@@ -156,7 +164,7 @@ mouseMovement := Vector2{}
 leftMouseDown := false
 
 selectedCity: ^City = {}
-selectedUnit: ^Unit = {}
+selectedUnit: Handle(Unit) = {}
 
 Color :: rl.Color
 Vector2 :: rl.Vector2

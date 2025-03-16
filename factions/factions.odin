@@ -51,8 +51,7 @@ update :: proc(f: ^Faction) {
         city.update(c)
     }
     for uh in f.units {
-        u := handleRetrieve(&game.units, uh).? or_continue
-        unit.update(u)
+        unit.update(uh)
     }
     tech_cost := f32(f.research_project.cost)
     if f.research_project.id != -1 && f.science >= tech_cost {
@@ -78,7 +77,7 @@ doAiTurn :: proc(f: ^Faction) {
             }
         }
         if closest != i16_max {
-            unit.sendToTile(u, target)
+            unit.sendToTile(uh, target)
         }
     }
     for city in f.cities {
