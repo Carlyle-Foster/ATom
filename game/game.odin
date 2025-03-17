@@ -56,8 +56,8 @@ start :: proc() {
 
     game = initializeState(
         number_of_factions = 3,
-        map_width = 96, 
-        map_height = 64, 
+        map_width = 20, //96, 
+        map_height = 20,//64, 
     )
     world.generate()
     // for &t in game.world.tiles {

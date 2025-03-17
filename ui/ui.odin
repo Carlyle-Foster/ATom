@@ -212,6 +212,7 @@ showBorders :: proc() {
 
     for faction in game.factions {
         for city in faction.cities {
+            if city.destroyed { return }
             assert(city.tiles != nil)
             for tl in city.tiles {
                 if int(game.playerFaction.id) not_in tl.discovery_mask do continue

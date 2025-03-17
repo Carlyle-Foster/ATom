@@ -73,10 +73,10 @@ entered :: proc(uh: Handle(Unit), t: ^Tile) {
         odds := calculateBattleOdds(u^, mb_enemy^)
         roll := rand.float32()
         if roll <= odds { // we win
-            handleRemove(&game.units, h)
+            destroy(h)
             log.debug("ATTACKERS WON")
         } else { // we lose
-            handleRemove(&game.units, uh)
+            destroy(uh)
             log.debug("DEFENDERS WON")
         }
     }
@@ -85,6 +85,18 @@ entered :: proc(uh: Handle(Unit), t: ^Tile) {
     for tl in tile.getInRadius(t, visibility) {
         tl.discovery_mask += {int(u.owner.id)}
     }
+}
+
+destroy :: proc(uh: Handle(Unit)) {
+    using shared
+    u := handleRetrieve(&game.units, uh).? or_else unreachable()
+    for i := 0; i < len(u.tile.units); i += 1 {
+        if u.tile.units[i] == uh {
+            unordered_remove(&u.tile.units, i)
+            break
+        }
+    }
+    handleRemove(&game.units, uh)
 }
 
 calculateBattleOdds :: proc(me, u: Unit) -> f32 {

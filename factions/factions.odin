@@ -50,8 +50,16 @@ update :: proc(f: ^Faction) {
     for c in f.cities {
         city.update(c)
     }
-    for uh in f.units {
-        unit.update(uh)
+
+    for i := 0; i < len(f.units); {
+        uh := f.units[i]
+        if _, ok := handleRetrieve(&game.units, uh).?; ok {
+            unit.update(uh)
+            i += 1
+        }
+        else {
+            unordered_remove(&f.units, i)
+        }
     }
     tech_cost := f32(f.research_project.cost)
     if f.research_project.id != -1 && f.science >= tech_cost {
