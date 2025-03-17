@@ -1,23 +1,11 @@
-package factions
+package ATom
 
 import "core:log"
 import "core:math/rand"
 import "core:math/linalg"
 import "core:container/small_array"
 
-import shared "../shared"
-import city "../cities"
-import tile "../tiles"
-import unit "../units"
-import pop "../pops"
-
-Faction :: shared.Faction
-City :: shared.City
-Tile :: shared.Tile
-
 generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
-    using shared
-
     factions: [dynamic]Faction = {}
     contenders: small_array.Small_Array(256, int)
     for i in 0..<len(factionTypeManifest) {
@@ -46,17 +34,15 @@ generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
     return factions
 }
 
-update :: proc(f: ^Faction) {
-    using shared
-
+updateFaction :: proc(f: ^Faction) {
     for c in f.cities {
-        city.update(c)
+        updateCity(c)
     }
 
     for i := 0; i < len(f.units); {
         uh := f.units[i]
         if _, ok := handleRetrieve(&game.units, uh).?; ok {
-            unit.update(uh)
+            updateUnit(uh)
             i += 1
         }
         else {
@@ -72,14 +58,12 @@ update :: proc(f: ^Faction) {
 }
 
 doAiTurn :: proc(f: ^Faction) {
-    using shared
-
     for uh in f.units {
         u := handleRetrieve(&game.units, uh).? or_continue
         i16_max :: 1 << 14
         closest: i16 = i16_max
         target: ^Tile
-        for tl in tile.getInRadius(u.tile, 4, include_center = false) {
+        for tl in getTilesInRadius(u.tile, 4, include_center = false) {
             for uh2 in tl.units {
                 possible_enemy := handleRetrieve(&game.units, uh2).? or_continue
                 if possible_enemy.owner != u.owner {
@@ -94,14 +78,14 @@ doAiTurn :: proc(f: ^Faction) {
             }
         }
         if closest != i16_max {
-            unit.sendToTile(uh, target)
+            sendUnitToTile(uh, target)
         }
     }
     for city in f.cities {
         for &p, i in city.population {
             if p.state == .UNEMPLOYED && i < len(city.tiles) {
                 chosen := chooseTileToWork(f, city)
-                pop.employ(&p, chosen)
+                employCitizen(&p, chosen)
             }
         }
         if len(city.location.units) == 0 && city.project == nil {
@@ -125,8 +109,6 @@ doAiTurn :: proc(f: ^Faction) {
 }
 
 chooseTileToWork :: proc(f: ^Faction, c: ^City) -> ^Tile {
-    using shared
-
     chosen: ^Tile
     high_score := 0
     

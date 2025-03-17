@@ -1,22 +1,10 @@
-package technologies
+package ATom
 
 import "core:log"
 
 import rl "vendor:raylib"
 
-import shared "../shared"
-import project "../projects"
-import ui "../ui"
-
-Technology :: shared.Technology
-
-Rect :: shared.Rect
-Vector2 :: shared.Vector2
-Color :: shared.Color
-
 drawTechnology :: proc(r: Rect, t: Technology) {
-    using shared
-
     @(static) ps: [MAX_TECHS]bool = {}
     researched := t.id in game.playerFaction.techs
     color1, color2: Color
@@ -32,7 +20,7 @@ drawTechnology :: proc(r: Rect, t: Technology) {
     else {
         color1, color2 = rl.DARKGREEN, rl.GREEN
     }
-    if ui.showButton(r, color1, &ps[t.id], .UI) {
+    if showButton(r, color1, &ps[t.id], .UI) {
         if rl.IsMouseButtonPressed(.LEFT) && !researched {
             game.playerFaction.research_project = t
             currentUIState = .MAP
@@ -44,7 +32,7 @@ drawTechnology :: proc(r: Rect, t: Technology) {
     rl.DrawText(t.name, i32(r.x), i32(r.y), i32(30), rl.RAYWHITE)
     offset: f32 = 0
     for p in t.projects {
-        texture := project.getTexture(p)
+        texture := getProjectTexture(p)
         icon_rect := Rect{r.x + offset, r.y + r.height/2, r.width/4, r.height/2}
         shape := Rect{0, 0, f32(texture.width), f32(texture.height)}
         rl.DrawTexturePro(texture, shape, icon_rect, Vector2{0, 0}, 0, rl.WHITE)
@@ -52,9 +40,7 @@ drawTechnology :: proc(r: Rect, t: Technology) {
     }
 }
 
-drawTree :: proc(r: Rect) {
-    using shared
-
+drawTechTree :: proc(r: Rect) {
     entry_size := int(r.height) / (len(TechnologyManifest)+1)
     height: f32 = 120
     for tech, index in TechnologyManifest {

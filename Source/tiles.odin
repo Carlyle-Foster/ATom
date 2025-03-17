@@ -1,25 +1,8 @@
-package tiles
+package ATom
 
 import "core:math/rand"
 
-import shared "../shared"
-
-Tile :: shared.Tile
-YieldType :: shared.YieldType
-ResourceType :: shared.ResourceType
-Coordinate :: shared.Coordinate
-Terrain :: shared.Terrain
-MovementType :: shared.MovementType
-
-City :: shared.City
-Unit :: shared.Unit
-Rect :: shared.Rect
-
-Flags :: shared.TileFlags
-
-create :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType) -> Tile {
-    using shared
-
+createTile :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType) -> Tile {
     return Tile {
         coordinate = coordinate, 
         terrain = terrain, 
@@ -32,11 +15,9 @@ create :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType
     }
 }
 
-get :: proc{getByCoordinates, getDestructured}
+getTile :: proc{getTileByCoordinates, getTileDestructured}
 
-getDestructured ::proc(x, y: i32) -> ^Tile {
-    using shared
-
+getTileDestructured ::proc(x, y: i32) -> ^Tile {
     if (x < 0 || x >= i32(game.world.dimensions.x)) || (y < 0 || y >= i32(game.world.dimensions.y)) {
         return nil
     }
@@ -46,9 +27,7 @@ getDestructured ::proc(x, y: i32) -> ^Tile {
     }
 }
 
-getByCoordinates ::proc(c: Coordinate) -> ^Tile {
-    using shared
-
+getTileByCoordinates ::proc(c: Coordinate) -> ^Tile {
     if (c.x < 0 || c.x >= i16(game.world.dimensions.x)) || (c.y < 0 || c.y >= i16(game.world.dimensions.y)) {
         return {}
     }
@@ -58,7 +37,7 @@ getByCoordinates ::proc(c: Coordinate) -> ^Tile {
     }
 }
 
-claim :: proc(c: ^City, t: ^Tile) {
+claimTile :: proc(c: ^City, t: ^Tile) {
     assert(t != nil)
     assert(c != nil)
     if t.owner == nil {
@@ -67,18 +46,15 @@ claim :: proc(c: ^City, t: ^Tile) {
     }
 }
 
-getRandom :: proc() -> ^Tile {
-    using shared
+getRandomTile :: proc() -> ^Tile {
     using game
 
     x := rand.int_max(int(game.world.dimensions.x))
     y := rand.int_max(int(game.world.dimensions.y))
-    return get(i32(x), i32(y))
+    return getTile(i32(x), i32(y))
 }
 
-getRect :: proc(t: Tile) -> Rect {
-    using shared
-
+getTileRect :: proc(t: Tile) -> Rect {
     r := Rect {
         x = f32(t.coordinate.x) * tileSize,
         y = f32(t.coordinate.y) * tileSize,
@@ -88,11 +64,11 @@ getRect :: proc(t: Tile) -> Rect {
     return r
 }
 
-getInRadius :: proc(center: ^Tile, range: i16, include_center := true) -> [dynamic]^Tile {
+getTilesInRadius :: proc(center: ^Tile, range: i16, include_center := true) -> [dynamic]^Tile {
     tiles := make([dynamic]^Tile, 0, (range*2+1) << 2, context.temp_allocator)
     for y in -range..=range {
         for x in -range..=range {
-            t := get(Coordinate{center.coordinate.x + x, center.coordinate.y + y})
+            t := getTile(Coordinate{center.coordinate.x + x, center.coordinate.y + y})
             if t != nil && (include_center || t != center) {
                 append(&tiles, t)
             }
@@ -101,7 +77,7 @@ getInRadius :: proc(center: ^Tile, range: i16, include_center := true) -> [dynam
     return tiles
 }
 
-getMovementType :: proc(t: ^Tile) -> MovementType {
+getTileMovementType :: proc(t: ^Tile) -> MovementType {
     if .CONTAINS_CITY in t.flags do return .CITY
     else do return t.terrain.movement_type
 }

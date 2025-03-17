@@ -1,33 +1,14 @@
-package game
+package ATom
 
 import "core:log"
 import "core:time"
 
 import rl "vendor:raylib"
 
-import shared "../shared"
-import world "../world"
-import ui "../ui"
-import city "../cities"
-import unit "../units"
-import tile "../tiles"
-import pop "../pops"
-import faction "../factions"
-import render "../rendering" 
-import database "../database"
-import tech "../technologies"
-
-Faction :: shared.Faction
-GameState :: shared.GameState
-Rect :: shared.Rect
-Tile :: shared.Tile
-
-initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> GameState {
-    using shared
-
-    factions := faction.generateFactions(number_of_factions)
+initializeGameState :: proc(map_width, map_height: i32, number_of_factions: int) -> GameState {
+    factions := generateFactions(number_of_factions)
     return GameState {
-        world = world.initialize(map_width, map_height, TerrainManifest[0]),
+        world = initializeWorld(map_width, map_height, TerrainManifest[0]),
         factions = factions,
         cities = make([dynamic]City, 0, 1024*2),
         units = makeHandledArray(Unit, 1024*8),
@@ -35,9 +16,7 @@ initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> 
     }
 }
 
-start :: proc() {
-    using shared
-
+startGame :: proc() {
     rl.SetRandomSeed(u32(time.now()._nsec))
     // rl.SetRandomSeed(2)
 
@@ -47,17 +26,17 @@ start :: proc() {
     windowRect = Rect{0, 0, windowDimensions.x, windowDimensions.y}
     defer rl.CloseWindow()
 
-    db := database.initialize("sqlite/SQL")
-    defer database.close(db)
-    database.regenerateManifests(db, "sqlite/SQL")
+    db := initializeDatabase("sqlite/SQL")
+    defer closeDatabase(db)
+    regenerateManifests(db, "sqlite/SQL")
     defer unloadAssets()
 
-    game = initializeState(
+    game = initializeGameState(
         number_of_factions = 3,
         map_width = 64, //96, 
         map_height = 52,//64, 
     )
-    world.generate(tiles_per_island = i16(rl.GetRandomValue(480, 1024)))
+    generateWorld(tiles_per_island = i16(rl.GetRandomValue(480, 1024)))
     for &t in game.world.tiles {
         t.discovery_mask += {int(game.playerFaction.id)}
     }
@@ -65,9 +44,9 @@ start :: proc() {
     for &f in game.factions {
         count := 0
         for len(f.cities) == 0 {
-            tile := tile.getRandom()
+            tile := getRandomTile()
             if tile.owner == nil && tile.terrain.movement_type == .LAND {
-                city.create(&f, tile)
+                createCity(&f, tile)
             }
             count += 1
             assert(count < 1024)
@@ -109,7 +88,7 @@ start :: proc() {
         mousePosition = rl.GetMousePosition()
         mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
         
-        ui.findFocus(mousePosition, cam)
+        findFocus(mousePosition, cam)
         if rl.IsKeyPressed(.T) {
             currentUIState = .TECH
         }
@@ -117,7 +96,7 @@ start :: proc() {
             currentUIState = .MAP
         }
         if rl.IsKeyPressed(.R) {
-            database.regenerateManifests(db, "sqlite/SQL")
+            regenerateManifests(db, "sqlite/SQL")
         }
         updateWindowSize()
         handleScreenSpaceInput()
@@ -130,8 +109,6 @@ start :: proc() {
 }
 
 updateWindowSize :: proc() {
-    using shared
-
     old_tile_size := tileSize
     window_width := f32(rl.GetScreenWidth())
     window_height := f32(rl.GetScreenHeight())
@@ -156,12 +133,10 @@ updateWindowSize :: proc() {
 }
 
 handleScreenSpaceInput :: proc() {
-    using shared
-
     switch currentUIState {
         case .MAP: 
             rl.BeginMode2D(cam)
-            render.gameMap()
+            renderGameMap()
             rl.EndMode2D()
             handleInput_MAP()
         case .TECH: 
@@ -171,29 +146,24 @@ handleScreenSpaceInput :: proc() {
     }
 }
 
-handleWorldSpaceInput :: proc() {
-    using shared
-    
+handleWorldSpaceInput :: proc() {    
     rl.BeginMode2D(cam)
     switch currentUIState {
         case .MAP: 
-            ui.showBorders()
-            ui.showBanners()
-            ui.showUnitIcons()
-            render.pops()
+            showBorders()
+            showBanners()
+            showUnitIcons()
+            renderPops()
         case .TECH: {}
     }
     rl.EndMode2D()
 }
 
 handleInput_MAP :: proc() {
-    using shared
-
     updateCamera()
     
     @(static) p2 := false
-    { using ui
-
+    {
         append(&Buttons, UI_Button{windowRect, &p2, .UI})
 
         @(static) p1 := false
@@ -211,10 +181,10 @@ handleInput_MAP :: proc() {
         if selectedCity != nil {
             showCityUI()
         }
-        ui.showUnitBoxIfNecessary(windowRect)
+        showUnitBoxIfNecessary(windowRect)
     }
     worldMouse := rl.GetScreenToWorld2D(mousePosition, cam) / tileSize
-    tileUnderMouse := tile.get(i32(worldMouse.x), i32(worldMouse.y))
+    tileUnderMouse := getTile(i32(worldMouse.x), i32(worldMouse.y))
     if p2 && rl.IsMouseButtonPressed(.LEFT) && tileUnderMouse != nil {
         click_consumed := false
         if selectedCity != nil && tileUnderMouse.owner == selectedCity {
@@ -232,7 +202,7 @@ handleInput_MAP :: proc() {
                 }
             }
             if candidate != nil {
-                pop.employ(candidate, tileUnderMouse)
+                employCitizen(candidate, tileUnderMouse)
                 click_consumed = true
             }
         }
@@ -254,11 +224,11 @@ handleInput_MAP :: proc() {
     else if rl.IsMouseButtonPressed(.RIGHT) && tileUnderMouse != nil {
         if selected, ok := handleRetrieve(&game.units, selectedUnit).?; ok {
             if selected.tile != tileUnderMouse {
-                unit.sendToTile(selectedUnit, tileUnderMouse)
+                sendUnitToTile(selectedUnit, tileUnderMouse)
             }
         }
         else {
-            city.create(game.playerFaction, tileUnderMouse)
+            createCity(game.playerFaction, tileUnderMouse)
         }
     }
     if rl.IsKeyPressed(.T) {
@@ -267,22 +237,18 @@ handleInput_MAP :: proc() {
     if rl.IsKeyPressed(.A) {
         nextTurn(automate_player_turn = true)
     }
-    ui.showPlayerStats()
-    ui.showCurrentTurn()
+    showPlayerStats()
+    showCurrentTurn()
     p2 = false
 }
 
 handleInput_TECH :: proc() {
-    using shared
-
     if rl.IsKeyPressed(.M) {
         currentUIState = .MAP
     }
 }
 
 nextTurn :: proc(automate_player_turn := false) {
-    using shared
-
     if !automate_player_turn {
         if game.playerFaction.research_project.id == -1 {
             for tech in TechnologyManifest {
@@ -299,13 +265,13 @@ nextTurn :: proc(automate_player_turn := false) {
                 return
             }
         }
-        faction.update(game.playerFaction)
+        updateFaction(game.playerFaction)
     }
 
     for &f in game.factions {
         if f.id != game.playerFaction.id || automate_player_turn {
-            faction.doAiTurn(&f)
-            faction.update(&f)
+            doAiTurn(&f)
+            updateFaction(&f)
         }
     }
     
@@ -328,8 +294,6 @@ initAudio :: proc() {
 }
 
 updateCamera :: proc() {
-    using shared
-
     if rl.IsMouseButtonDown(.LEFT) {
         if rl.IsMouseButtonPressed(.LEFT) {
             mouseMovement = Vector2{0,0}
@@ -351,8 +315,6 @@ updateCamera :: proc() {
 }
 
 cameraLookingOutside :: proc() -> bool {
-    using shared
-
     world_dimension := Vector2{f32(game.world.dimensions.x)*tileSize, f32(game.world.dimensions.y)*tileSize}
     x_edge := min(cam.target.x, world_dimension.x - cam.target.x)
     y_edge := min(cam.target.y, world_dimension.y - cam.target.y)
@@ -361,24 +323,18 @@ cameraLookingOutside :: proc() -> bool {
 }
 
 drawTechScreen :: proc(r: Rect) {
-    using shared
-
     length := f32(textures.technology.height)*r.width/r.height
     source_rect := Rect{0, 0, length, f32(textures.technology.height)}
     rl.DrawTexturePro(textures.technology, source_rect, windowRect, Vector2{0, 0}, 0, rl.GRAY)
-    tech.drawTree(windowRect)
+    drawTechTree(windowRect)
 }
 
 centerCamera :: proc(t: Tile) {
-    using shared
-
-    r := tile.getRect(t)
+    r := getTileRect(t)
     cam.target = {r.x + r.width/2, r.y + r.height/2}
 }
 
-unloadAssets :: proc() {
-    using shared
-    
+unloadAssets :: proc() {    
     for unit_type in UnitTypeManifest {
         rl.UnloadTexture(unit_type.texture)
     }

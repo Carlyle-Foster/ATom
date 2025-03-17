@@ -1,27 +1,12 @@
-package cities
+package ATom
 
 import "core:log"
 import "core:strings"
 import "core:math"
 
-import shared "../shared"
-import unit "../units"
-import tile "../tiles"
-import citizen "../pops"
-import project "../projects"
-
-City :: shared.City
-BuildingType :: shared.BuildingType
-Building :: shared.Building
-
-Faction :: shared.Faction
-Tile :: shared.Tile
-
-create :: proc(f: ^Faction, t: ^Tile) -> ^City {
-    using shared
-
+createCity :: proc(f: ^Faction, t: ^Tile) -> ^City {
     append(&game.cities, City{
-        name = getNextName(f), 
+        name = getNextCityName(f), 
         owner = f, 
         destroyed = false, 
         population = {}, 
@@ -34,18 +19,18 @@ create :: proc(f: ^Faction, t: ^Tile) -> ^City {
     })
     city := &game.cities[len(game.cities) - 1]
     append(&f.cities, city)
-    for tl in tile.getInRadius(t, 1) {
-        tile.claim(city, tl)
+    for tl in getTilesInRadius(t, 1) {
+        claimTile(city, tl)
     }
-    for tl in tile.getInRadius(t, 7) {
+    for tl in getTilesInRadius(t, 7) {
         tl.discovery_mask += {int(f.id)}
     }
     t.flags += { .CONTAINS_CITY }
-    city.population = { citizen.create(city) }
+    city.population = { createCitizen(city) }
     return city
 }
 
-getNextName :: proc(f: ^Faction) -> cstring {
+getNextCityName :: proc(f: ^Faction) -> cstring {
     @(static) count  := 1
     builder := strings.Builder{}
     strings.write_string(&builder, string(f.type.name))
@@ -55,21 +40,17 @@ getNextName :: proc(f: ^Faction) -> cstring {
     return strings.to_cstring(&builder)
 }
 
-getPopCost :: proc(c: City) -> f32 {
+cityGetPopCost :: proc(c: City) -> f32 {
     base := 10
     mult := 5
     return f32(base + len(c.population)*mult)
 }
 
-isVisibleToPlayer :: proc(using c: ^City) -> bool {
-    using shared
-
+cityIsVisibleToPlayer :: proc(using c: ^City) -> bool {
     return int(game.playerFaction.id) in location.discovery_mask && !destroyed
 }
 
-update :: proc(c: ^City) {
-    using shared
-
+updateCity :: proc(c: ^City) {
     yields: [YieldType]f32
     multipliers: [YieldType]f32 = {.FOOD=1, .PRODUCTION=1, .SCIENCE=1, .GOLD=1}
     yields += c.location.terrain.yields
@@ -78,7 +59,7 @@ update :: proc(c: ^City) {
         if p.state == .WORKING {
             yields += p.tile.terrain.yields
         }
-        yields[.FOOD] -= citizen.DIET
+        yields[.FOOD] -= CITIZEN_DIET
     }
     for building in c.buildings {
         yields += building.type.yields
@@ -92,33 +73,33 @@ update :: proc(c: ^City) {
     c.owner.gold += f32(yields[.GOLD])
     c.owner.science += yields[.SCIENCE]
     c.owner.science += f32(len(c.population))
-    pop_cost := getPopCost(c^)
+    pop_cost := cityGetPopCost(c^)
     for c.growth >= pop_cost {
-        append(&c.population, citizen.create(c))
+        append(&c.population, createCitizen(c))
         c.growth -= pop_cost
-        pop_cost = getPopCost(c^)
+        pop_cost = cityGetPopCost(c^)
     }
     for c.growth < 0 {
         pop(&c.population)
-        pop_cost = getPopCost(c^)
+        pop_cost = cityGetPopCost(c^)
         c.growth += pop_cost
         if len(c.population) == 0 {
-            destroy(c)
+            destroyCity(c)
             return
         }
     }
     if c.project != nil {
-        project_cost := f32(project.getCost(c.project))
+        project_cost := f32(getProjectCost(c.project))
         if c.hammers >= project_cost {
             switch type in c.project {
-                case ^UnitType: unit.create(type,  c.owner, c.location)
+                case ^UnitType: createUnit(type,  c.owner, c.location)
                 case ^BuildingType: createBuilding(type, c)
             }
             c.hammers -= project_cost
             c.project = nil
         }
     }
-    log.info("Population:", len(c.population), "growth", c.growth, "growth required", getPopCost(c^))
+    log.info("Population:", len(c.population), "growth", c.growth, "growth required", cityGetPopCost(c^))
 }
 
 createBuilding :: proc(t: ^BuildingType, c: ^City) -> ^Building {
@@ -130,7 +111,7 @@ createBuilding :: proc(t: ^BuildingType, c: ^City) -> ^Building {
     return &c.buildings[len(c.buildings) - 1]
 }
 
-destroy :: proc(c: ^City) {
+destroyCity :: proc(c: ^City) {
     assert(!c.destroyed)
     c.location.flags -= { .CONTAINS_CITY }
     log.info("city destroyed, name:", c.name, ", owner:", c.owner.type.name)

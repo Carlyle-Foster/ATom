@@ -1,4 +1,4 @@
-package ui
+package ATom
 
 import "core:fmt"
 import "core:strings"
@@ -7,17 +7,7 @@ import "core:math/linalg"
 
 import rl "vendor:raylib"
 
-import shared "../shared"
-import tile "../tiles"
-import city "../cities"
 // import tech "../technologies"
-
-Color :: rl.Color
-Vector2 :: rl.Vector2
-Rect :: rl.Rectangle
-
-City :: shared.City
-Unit :: shared.Unit
 
 DrawMode :: enum {
     MAP,
@@ -99,10 +89,8 @@ showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode,
 }
 
 showBanners :: proc() {
-    using shared
-
     for &c, index in game.cities {
-        if city.isVisibleToPlayer(&c) {
+        if cityIsVisibleToPlayer(&c) {
             showBanner(&c, index)
         }
     }
@@ -130,8 +118,6 @@ showBanners :: proc() {
 }
 
 showUnitIcons :: proc() {
-    using shared
-
     for &u, index in game.units._inner {
         if u.generation >= 0 {
             showUnitIcon(&u._inner, index)
@@ -157,7 +143,6 @@ showUnitIcons :: proc() {
 }
 
 showCityUI :: proc() {
-    using shared
     showSidebar2(subRectangle(windowRect, 0.2, 0.8, ALIGN_RIGHT, ALIGN_CENTER))
     if selectedCity.owner == game.playerFaction {
         showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
@@ -165,8 +150,6 @@ showCityUI :: proc() {
 }
 
 showSidebar :: proc(r: Rect) {
-    using shared
-
     r := r
     padding :: 1.45
     assert(selectedCity != nil)
@@ -218,8 +201,6 @@ showSidebar :: proc(r: Rect) {
 }
 
 showSidebar2 :: proc(r: Rect) {
-    using shared
-
     r := r
     padding :: 1.45
     assert(selectedCity != nil)
@@ -240,8 +221,6 @@ showSidebar2 :: proc(r: Rect) {
 }
 
 showBorders :: proc() {
-    using shared
-
     for faction in game.factions {
         for city in faction.cities {
             if city.destroyed { return }
@@ -251,15 +230,15 @@ showBorders :: proc() {
                 assert(tl != nil)
                 color := faction.type.primary_color
                 color.a = 128
-                rect := tile.getRect(tl^)
+                rect := getTileRect(tl^)
                 showRect(rect, color)
                 center := Vector2{rect.x + rect.width/2, rect.y + rect.height/2}
                 color = faction.type.secondary_color
                 color.a = 192
                 for direction in OrthogonalDirections {
-                    neighbor := tile.get(tl.coordinate + direction)
+                    neighbor := getTile(tl.coordinate + direction)
                     if neighbor != nil && (neighbor.owner == nil || neighbor.owner.owner == nil || neighbor.owner.owner.id != faction.id) {
-                        nrect := tile.getRect(neighbor^)
+                        nrect := getTileRect(neighbor^)
                         target := Vector2{nrect.x + nrect.width/2, nrect.y + nrect.height/2}
                         edge := (target - center) / 2
                         offset := edge * linalg.matrix2_rotate_f32(math.PI/2)
@@ -274,7 +253,6 @@ showBorders :: proc() {
 }
 
 showUnitBoxIfNecessary :: proc(r: Rect) {
-    using shared
     r := r
 
     if selected, ok := handleRetrieve(&game.units, selectedUnit).?; ok {
@@ -285,7 +263,7 @@ showUnitBoxIfNecessary :: proc(r: Rect) {
 }
 
 showPlayerStats :: proc() {
-    using shared, game
+    using game
 
     r := subRectangle(windowRect, 0, 0, windowDimensions.x, windowDimensions.y / 8)
     r2 := subRectangle(r, 0.03, 0.25, windowDimensions.x * 0.97, windowDimensions.y / 16)
@@ -301,7 +279,7 @@ showPlayerStats :: proc() {
 }
 
 showCurrentTurn :: proc() {
-    using shared, game
+    using game
 
     r := subRectangle(windowRect, 0, 0, windowDimensions.x, windowDimensions.y / 8)
     r2 := subRectangle(r, 0.03, 0.25, windowDimensions.x * 0.97, windowDimensions.y / 16)

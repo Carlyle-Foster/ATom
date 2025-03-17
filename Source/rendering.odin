@@ -1,24 +1,13 @@
-package rendering
+package ATom
+
 import rl "vendor:raylib"
-import rlx "../rlx"
 
-import shared "../shared"
-import tile "../tiles"
-
-
-Handle :: shared.Handle
-City :: shared.City
-Unit :: shared.Unit
-UnitRenderer :: shared.UnitRenderer
-
-gameMap :: proc() {
-    using shared
-
+renderGameMap :: proc() {
     size := i32(tileSize)
     offset_unit: f32 = 128
     for y in 0..<i32(game.world.dimensions.y) {
         for x in 0..<i32(game.world.dimensions.x) {
-            t := tile.get(x, y)
+            t := getTile(x, y)
             sizef := f32(size)
             xf, yf := f32(x), f32(y)
             offset := offset_unit*f32(t.terrain.id)
@@ -50,9 +39,8 @@ gameMap :: proc() {
 }
 
 renderCity :: proc(city: City) {
-    using shared
     if int(game.playerFaction.id) in city.location.discovery_mask && !city.destroyed {
-        rlx.drawAtopTile(textures.city, city.location^)
+        drawAtopTile(textures.city, city.location^)
     }
 }
 
@@ -61,19 +49,17 @@ createUnitRenderer :: proc(unit: ^Unit) {
 }
 
 renderUnit :: proc(using ur: UnitRenderer) {
-    using shared
     if int(game.playerFaction.id) in unit.tile.discovery_mask {
-        rlx.drawAtopTile(unit.type.texture, unit.tile^)
+        drawAtopTile(unit.type.texture, unit.tile^)
     }
 }
 
-pops :: proc() {
-    using shared
+renderPops :: proc() {
     if selectedCity != nil {
         for pop in selectedCity.population {
             transparent :: Color{255,255,255,128}
             tint := pop.state == .WORKING ? rl.WHITE : transparent
-            rlx.drawAtopTile(textures.pop, pop.tile^,  tint)
+            drawAtopTile(textures.pop, pop.tile^,  tint)
         }
     }
 }

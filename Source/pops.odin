@@ -1,18 +1,12 @@
-package pops
+package ATom
 
-import shared "../shared"
+CITIZEN_DIET: f32 = 2.0
 
-Pop :: shared.Pop
-Tile :: shared.Tile
-City :: shared.City
-
-DIET: f32 = 2.0
-
-create :: proc(c: ^City) -> Pop {
+createCitizen :: proc(c: ^City) -> Pop {
     return Pop{.UNEMPLOYED, c.location}
 }
 
-employ :: proc(p: ^Pop, t: ^Tile) {
+employCitizen :: proc(p: ^Pop, t: ^Tile) {
     if t.flags & {.WORKED, .CONTAINS_CITY} != nil do return
 
     if p.tile != nil {

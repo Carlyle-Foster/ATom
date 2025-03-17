@@ -1,16 +1,10 @@
-package pathing
+package ATom
 
 //implements the A* pathfinding algorithm
 
 import "core:math"
 import "core:log"
 import "core:container/priority_queue"
-
-import shared "../shared"
-import tile "../tiles"
-
-Tile :: shared.Tile
-Unit :: shared.Unit
 
 A_StarNode :: struct {
     start_tile: ^Tile,
@@ -20,9 +14,7 @@ A_StarNode :: struct {
     cost: int,
 }
 
-find :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
-    using shared
-
+findPath :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
     frontier := priority_queue.Priority_Queue(^A_StarNode){}
     priority_queue.init(&frontier, less, swap)
     defer priority_queue.destroy(&frontier)
@@ -38,8 +30,8 @@ find :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
         count += 1
         if count > 4096 do return {}
         log.debug("    ", selected_tile.coordinate)
-        for tl in tile.getInRadius(selected_tile, 1, include_center = false) {
-            if tile.getMovementType(tl) in unit.type.habitat {
+        for tl in getTilesInRadius(selected_tile, 1, include_center = false) {
+            if getTileMovementType(tl) in unit.type.habitat {
                 node := new(A_StarNode, context.temp_allocator)
                 node^ = {start, end, tl, selected_node, selected_node.cost + 1}
                 priority_queue.push(&frontier, node)

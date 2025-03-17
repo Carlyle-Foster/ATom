@@ -1,16 +1,8 @@
-package projects
+package ATom
 
 import "core:log"
 
-import shared "../shared"
-
-ProjectType :: shared.ProjectType
-UnitType :: shared.UnitType
-BuildingType :: shared.BuildingType
-
-Texture :: shared.Texture
-
-getCost :: proc(p: ProjectType) -> i32 {
+getProjectCost :: proc(p: ProjectType) -> i32 {
     switch type in p {
         case ^UnitType: {
             return type.cost
@@ -24,7 +16,7 @@ getCost :: proc(p: ProjectType) -> i32 {
     }
 }
 
-getName :: proc(p: ProjectType) -> cstring {
+getProjectName :: proc(p: ProjectType) -> cstring {
     switch type in p {
         case ^UnitType: {
             return type.name
@@ -38,7 +30,7 @@ getName :: proc(p: ProjectType) -> cstring {
     }
 }
 
-getTexture :: proc(p: ProjectType) -> Texture {
+getProjectTexture :: proc(p: ProjectType) -> Texture {
     switch type in p {
         case ^UnitType: {
             return type.texture

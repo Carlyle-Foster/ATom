@@ -8,8 +8,8 @@ RAYLIB=$(shell odin root)vendor/raylib/linux/libraylib.a
 all: Build/Debug/ATom
 	gdb -ex run ./$<
 
-Build/Debug/ATom: first.odin game/game.odin world/world.odin shared/shared.odin cities/cities.odin database/database.odin tiles/tiles.odin units/units.odin ui/ui.odin pathing/pathing.odin technologies/technologies.odin factions/factions.odin pops/pops.odin projects/projects.odin rendering/rendering.odin sqlite/sqlite.odin Build/Cache/sqlite.a $(RAYLIB)
-	odin build . -out:$@ -debug
+Build/Debug/ATom: Source/*.odin sqlite/sqlite.odin Build/Cache/sqlite.a $(RAYLIB)
+	odin build Source -out:$@ -debug
 
 Build/Cache/sqlite.a: sqlite/sqlite3.c
 	clang -c $< -o $@ && echo 'built sqlite for linux'

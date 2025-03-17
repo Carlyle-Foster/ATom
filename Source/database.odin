@@ -1,4 +1,4 @@
-package database
+package ATom
 
 import "core:log"
 import "core:fmt"
@@ -12,13 +12,7 @@ import rl "vendor:raylib"
 
 import sqlite "../sqlite"
 
-import shared "../shared"
-import project "../projects"
-
-MovementType :: shared.MovementType
-MAX_TECHS :: shared.MAX_TECHS
-
-initialize :: proc(sql_path: string) -> ^sqlite.DataBase {
+initializeDatabase :: proc(sql_path: string) -> ^sqlite.DataBase {
     db: ^sqlite.DataBase = nil
 
     if !os.exists("sqlite/game.db") {
@@ -64,7 +58,7 @@ cacheOutOfDate :: proc(sql_path: string) -> bool {
     return false
 }
 
-close :: proc(db: ^sqlite.DataBase) { sqlite.close(db) }
+closeDatabase :: proc(db: ^sqlite.DataBase) { sqlite.close(db) }
 
 buildCache :: proc(db: ^sqlite.DataBase, sql_path: string) {
     dir, err := os.open(sql_path)
@@ -103,7 +97,7 @@ regenerateManifests :: proc(db: ^sqlite.DataBase, sql_path: string) {
     if cacheOutOfDate(sql_path) {
         rebuildCache(db, sql_path)
     }
-    clear(&shared.projectManifest)
+    clear(&projectManifest)
     generateTerrainManifest(db)
     generateFactionManifest(db)
     generateUnitTypeManifest(db)
@@ -123,11 +117,10 @@ generateManifestGeneric :: proc(db: ^sqlite.DataBase, table: cstring, p: parser)
 }
 
 generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
-    clear(&shared.TerrainManifest)
+    clear(&TerrainManifest)
     generateManifestGeneric(db, "Terrain", defineTerrain)
     
     defineTerrain :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
-        using shared
         using strconv
         context = runtime.default_context()
 
@@ -150,7 +143,7 @@ generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
             .GOLD = gold,
         }
         log.debug(name)
-        append(&shared.TerrainManifest, (Terrain){
+        append(&TerrainManifest, (Terrain){
                 name, 
                 ID, 
                 yields,
@@ -163,11 +156,10 @@ generateTerrainManifest :: proc(db: ^sqlite.DataBase) {
 }
 
 generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
-    clear(&shared.UnitTypeManifest)
+    clear(&UnitTypeManifest)
     generateManifestGeneric(db, "Units", defineUnitType)
 
     defineUnitType :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
-        using shared
         using strconv
         context = runtime.default_context()
 
@@ -189,19 +181,18 @@ generateUnitTypeManifest :: proc(db: ^sqlite.DataBase) {
             habitat,
             i32(cost),
         }
-        append(&shared.UnitTypeManifest, ut)
-        pt := &shared.UnitTypeManifest[len(shared.UnitTypeManifest)-1]
-        append(&shared.projectManifest, ProjectType(pt))
+        append(&UnitTypeManifest, ut)
+        pt := &UnitTypeManifest[len(UnitTypeManifest)-1]
+        append(&projectManifest, ProjectType(pt))
         return 0
     }
 }
 
 generateBuildingManifest :: proc(db: ^sqlite.DataBase) {
-    clear(&shared.BuildingTypeManifest)
+    clear(&BuildingTypeManifest)
     generateManifestGeneric(db, "Buildings", defineBuilding)
 
     defineBuilding :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
-        using shared
         using strconv
         context = runtime.default_context()
 
@@ -238,19 +229,18 @@ generateBuildingManifest :: proc(db: ^sqlite.DataBase) {
             yield_mults, 
             i32(cost),
         }
-        append(&shared.BuildingTypeManifest, bt)
-        pt := &shared.BuildingTypeManifest[len(BuildingTypeManifest)-1]
-        append(&shared.projectManifest, ProjectType(pt))
+        append(&BuildingTypeManifest, bt)
+        pt := &BuildingTypeManifest[len(BuildingTypeManifest)-1]
+        append(&projectManifest, ProjectType(pt))
         return 0
     }
 }
 
 generateFactionManifest :: proc(db: ^sqlite.DataBase) {
-    clear(&shared.factionTypeManifest)
+    clear(&factionTypeManifest)
     generateManifestGeneric(db, "Factions", defineFaction)
     
     defineFaction :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
-        using shared
         using strconv
         context = runtime.default_context()
 
@@ -261,7 +251,7 @@ generateFactionManifest :: proc(db: ^sqlite.DataBase) {
 
         assert(ok1 && ok2)
         log.debug(name)
-        append(&shared.factionTypeManifest, FactionType {
+        append(&factionTypeManifest, FactionType {
                 name, 
                 rl.GetColor(u32(primary_color)),
                 rl.GetColor(u32(secondary_color)),
@@ -272,12 +262,11 @@ generateFactionManifest :: proc(db: ^sqlite.DataBase) {
 }
 
 generateTechManifest :: proc(db: ^sqlite.DataBase) {
-    clear(&shared.TechnologyManifest)
+    clear(&TechnologyManifest)
     generateManifestGeneric(db, "Technology", defineTech)
-    assert(len(shared.TechnologyManifest) <= MAX_TECHS)
+    assert(len(TechnologyManifest) <= MAX_TECHS)
     
     defineTech :: proc "c" (_: rawptr, rows: int, values: [^]cstring, _: [^]cstring) -> int {
-        using shared
         using strconv
         context = runtime.default_context()
 
@@ -289,7 +278,7 @@ generateTechManifest :: proc(db: ^sqlite.DataBase) {
         for raw in strings.split(unlocks_string, ",") {
             target_name := strings.to_lower(strings.trim(raw, " \r\n"))
             for p in projectManifest {
-                project_name := strings.to_lower(string(project.getName(p)))
+                project_name := strings.to_lower(string(getProjectName(p)))
                 if project_name == target_name {
                     append(&unlocks, p)
                     break
@@ -300,7 +289,7 @@ generateTechManifest :: proc(db: ^sqlite.DataBase) {
 
         assert(ok)
         log.debug(name)
-        append(&shared.TechnologyManifest, Technology {
+        append(&TechnologyManifest, Technology {
                 id,
                 name,
                 unlocks,

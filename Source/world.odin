@@ -1,4 +1,4 @@
-package world
+package ATom
 
 import "core:fmt"
 
@@ -8,16 +8,7 @@ import "core:math/linalg"
 
 import rl "vendor:raylib"
 
-import shared "../shared"
-import tile "../tiles"
-
-World :: shared.World
-Tile :: shared.Tile
-Terrain :: shared.Terrain
-Vector2 :: shared.Vector2
-Coordinate :: shared.Coordinate
-
-initialize :: proc(width, height: i32, starting_terrain: Terrain, seed: i64 = 0) -> World {
+initializeWorld :: proc(width, height: i32, starting_terrain: Terrain, seed: i64 = 0) -> World {
     assert(width > 0)
     assert(height > 0)
     seed := seed
@@ -32,8 +23,8 @@ initialize :: proc(width, height: i32, starting_terrain: Terrain, seed: i64 = 0)
     }
 }
 
-generate :: proc(tiles_per_island: i16 = 512) {
-    using shared, math
+generateWorld :: proc(tiles_per_island: i16 = 512) {
+    using math
 
     default: ^Terrain
     shares: i32 = 0
@@ -49,7 +40,7 @@ generate :: proc(tiles_per_island: i16 = 512) {
     islands := make([]Coordinate, total_islands)
     fmt.println("total islands =", total_islands)
     for i in 0..<len(islands) {
-        islands[i] = getRandom()
+        islands[i] = getRandomCoordinate()
         fmt.println(islands[i])
     }
 
@@ -76,14 +67,12 @@ generate :: proc(tiles_per_island: i16 = 512) {
             }
             if chosen == {} do chosen = default
 
-            tile.get(c)^  = tile.create(c, chosen, .PEARLS)
+            getTile(c)^  = createTile(c, chosen, .PEARLS)
         }
     }
 }
 
-getRandom :: proc() -> Coordinate {
-    using shared, game
-
+getRandomCoordinate :: proc() -> Coordinate {
     x := rand.int_max(int(game.world.dimensions.x))
     y := rand.int_max(int(game.world.dimensions.y))
     return Coordinate{i16(x), i16(y)}
