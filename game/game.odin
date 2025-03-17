@@ -38,8 +38,6 @@ initializeState :: proc(map_width, map_height: i32, number_of_factions: int) -> 
 start :: proc() {
     using shared
 
-    context.logger = log.create_console_logger()
-
     rl.SetRandomSeed(u32(time.now()._nsec))
     // rl.SetRandomSeed(2)
 
