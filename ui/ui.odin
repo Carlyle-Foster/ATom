@@ -17,6 +17,7 @@ Vector2 :: rl.Vector2
 Rect :: rl.Rectangle
 
 City :: shared.City
+Unit :: shared.Unit
 
 DrawMode :: enum {
     MAP,
@@ -128,6 +129,33 @@ showBanners :: proc() {
     }
 }
 
+showUnitIcons :: proc() {
+    using shared
+
+    for &u, index in game.units._inner {
+        if u.generation >= 0 {
+            showUnitIcon(&u._inner, index)
+        }
+        assert(index < 128)
+    }
+    @(static) ps :[128]bool = {}
+    showUnitIcon :: proc(using u : ^Unit, index: int) {    
+        scale := 1.0 / cam.zoom
+        lift := 16.0*scale
+        x := f32(tile.coordinate.x)*tileSize + tileSize/2
+        y := f32(tile.coordinate.y)*tileSize - lift 
+        width := 96.0*scale
+        height := 24.0*scale
+        rect := Rect{x - width/2, y, width, height}
+        if showButton(rect, u.owner.type.primary_color, &ps[index], .MAP) {
+            if rl.IsMouseButtonPressed(.LEFT) {
+                selectedUnit = handleFromIndex(&game.units, i16(index))
+            }
+        }
+        showText(rect, u.owner.type.secondary_color, type.name, ALIGN_CENTER)
+    }
+}
+
 showCityUI :: proc() {
     using shared
     showSidebar2(subRectangle(windowRect, 0.2, 0.8, ALIGN_RIGHT, ALIGN_CENTER))
@@ -144,7 +172,7 @@ showSidebar :: proc(r: Rect) {
     assert(selectedCity != nil)
     
     showRect(r, rl.PURPLE)
-    text: cstring = selectedCity != {} ? selectedCity.name : "NULL"
+    text: cstring = selectedCity.name
     title_rect := chopRectangle(&r, r.height/5.0, .TOP)
     entry_size := r.height/5
     showRect(title_rect, rl.GetColor(0x992465ff))

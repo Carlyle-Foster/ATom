@@ -33,6 +33,12 @@ handleRetrieve :: proc(ha: ^HandledArray($T), h: Handle(T)) -> Maybe(^T) {
     if h.generation != result.generation { return nil }
     else { return &result._inner }
 }
+handleFromIndex :: proc(ha: ^HandledArray($T), index: i16) -> Handle(T) {
+    return Handle(T) {
+        generation = ha._inner[index].generation, 
+        index = index, 
+    }
+}
 handlePush :: proc(ha: ^HandledArray($T), item: T) -> Handle(T) {
     a := &ha._inner
     v := &ha.vacancies

@@ -181,6 +181,7 @@ handleWorldSpaceInput :: proc() {
         case .MAP: 
             ui.showBorders()
             ui.showBanners()
+            ui.showUnitIcons()
             render.pops()
         case .TECH: {}
     }

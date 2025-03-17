@@ -1,11 +1,13 @@
 package factions
 
+import "core:log"
 import "core:math/rand"
 import "core:math/linalg"
 import "core:container/small_array"
 
 import shared "../shared"
 import city "../cities"
+import tile "../tiles"
 import unit "../units"
 import pop "../pops"
 
@@ -77,11 +79,18 @@ doAiTurn :: proc(f: ^Faction) {
         i16_max :: 1 << 14
         closest: i16 = i16_max
         target: ^Tile
-        for c in shared.game.playerFaction.cities {
-            distance := linalg.vector_length2(c.location.coordinate - u.tile.coordinate)
-            if distance < closest {
-                closest = distance
-                target = c.location
+        for tl in tile.getInRadius(u.tile, 4, include_center = false) {
+            for uh2 in tl.units {
+                possible_enemy := handleRetrieve(&game.units, uh2).? or_continue
+                if possible_enemy.owner != u.owner {
+                    distance := linalg.vector_length2(tl.coordinate - u.tile.coordinate)
+                    if distance < closest {
+                        log.debug("LOCKED ON")
+                        closest = distance
+                        target = tl
+                        break
+                    }
+                }
             }
         }
         if closest != i16_max {
