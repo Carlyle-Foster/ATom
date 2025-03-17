@@ -56,13 +56,13 @@ start :: proc() {
 
     game = initializeState(
         number_of_factions = 3,
-        map_width = 20, //96, 
-        map_height = 20,//64, 
+        map_width = 64, //96, 
+        map_height = 52,//64, 
     )
-    world.generate()
-    // for &t in game.world.tiles {
-    //     t.discovery_mask += {int(game.playerFaction.id)}
-    // }
+    world.generate(tiles_per_island = i16(rl.GetRandomValue(480, 1024)))
+    for &t in game.world.tiles {
+        t.discovery_mask += {int(game.playerFaction.id)}
+    }
 
     for &f in game.factions {
         count := 0
@@ -105,7 +105,7 @@ start :: proc() {
         rl.BeginDrawing()
         rl.BeginShaderMode(shader)
 
-        rl.DrawRectangleV({0, 0}, windowDimensions, rl.BLACK)
+        rl.ClearBackground(rl.RAYWHITE)
 
         lastMousePostion := mousePosition
         mousePosition = rl.GetMousePosition()
@@ -141,18 +141,18 @@ updateWindowSize :: proc() {
     windowRect.height = window_height
     windowDimensions = Vector2{window_width, window_height}
 
-    defaultTileSize := window_height/8
-    tileSize = defaultTileSize
-    map_space := game.world.dimensions.x*tileSize
-    //too thorny
-    speculative_x := cam.target.x*(tileSize/old_tile_size)
-    cam_offset := abs(speculative_x - map_space/2)
-    pixels_to_cover := map_space - cam_offset*2 
-    pixels_covered := windowDimensions.x / cam.zoom
-    tiles_to_cover := pixels_to_cover / tileSize
-    if pixels_covered > pixels_to_cover {
-        tileSize = pixels_covered / tiles_to_cover
-    }
+    // defaultTileSize := window_height/8
+    // tileSize = defaultTileSize
+    // map_space := game.world.dimensions.x*tileSize
+    // //too thorny
+    // speculative_x := cam.target.x*(tileSize/old_tile_size)
+    // cam_offset := abs(speculative_x - map_space/2)
+    // pixels_to_cover := map_space - cam_offset*2 
+    // pixels_covered := windowDimensions.x / cam.zoom
+    // tiles_to_cover := pixels_to_cover / tileSize
+    // if pixels_covered > pixels_to_cover {
+    //     tileSize = pixels_covered / tiles_to_cover
+    // }
     cam.offset = windowDimensions/2
     cam.target = cam.target*(tileSize/old_tile_size)
 }
@@ -337,14 +337,16 @@ updateCamera :: proc() {
         }
         old_target := cam.target
         cam.target -= mouseMovement
-        if cameraLookingOutside() {
+        if false // cameraLookingOutside() 
+        {
             cam.target = old_target
         }
         camNoZoom.target = cam.target
     }
     old_zoom := cam.zoom
     cam.zoom += rl.GetMouseWheelMoveV().y / 12.0
-    if cameraLookingOutside() {
+    if false // cameraLookingOutside() 
+    {
         cam.zoom = old_zoom
     }
 }

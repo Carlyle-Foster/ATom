@@ -32,11 +32,13 @@ initialize :: proc(width, height: i32, starting_terrain: Terrain, seed: i64 = 0)
     }
 }
 
-generate :: proc() {
+generate :: proc(tiles_per_island: i16 = 512) {
     using shared, math
 
     default: ^Terrain
     shares: i32 = 0
+    total_tiles := i16(floor(game.world.dimensions.y) * floor(game.world.dimensions.x))
+    total_islands := total_tiles / tiles_per_island
     
     for &t in TerrainManifest {
         if t.name == "shallows" do default = &t
@@ -44,7 +46,8 @@ generate :: proc() {
     }
     assert(default != {})
 
-    islands: [8]Coordinate 
+    islands := make([]Coordinate, total_islands)
+    fmt.println("total islands =", total_islands)
     for i in 0..<len(islands) {
         islands[i] = getRandom()
         fmt.println(islands[i])

@@ -67,17 +67,21 @@ showText :: proc(rect: Rect, color: Color, text: cstring, align: Alignment, back
     }
     rect = subRectangle(rect, 1.0, 0.8, ALIGN_CENTER, ALIGN_CENTER)
 
+    if rect.width == 0 || rect.height == 0 { return }
     font_size := i32(rect.height)
     text_width := rl.MeasureText(text, font_size)
-    for text_width > i32(rect.width) && font_size >= 0 {
-        font_size -= 1
+    if text_width == 0  { return }
+    scale_factor := rect.width / f32(text_width)
+    if scale_factor < 1. {
+        font_size = i32(f32(font_size) * scale_factor)
         text_width = rl.MeasureText(text, font_size)
     }
-    x: i32
+    x := i32(rect.x)
+    side_margin := i32(rect.width) - text_width
     switch align {
-        case ALIGN_LEFT: x = i32(rect.x)
-        case ALIGN_CENTER: x = i32(rect.x) + (i32(rect.width) - text_width)/2
-        case ALIGN_RIGHT: x = i32(rect.x) + (i32(rect.width) - text_width)
+        case ALIGN_LEFT: {}
+        case ALIGN_CENTER: x += side_margin/2
+        case ALIGN_RIGHT: x += side_margin
     }
     y := i32(rect.y) + (i32(rect.height) - font_size)/2
     rl.DrawText(text, x, y, font_size, color)
