@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:strings"
 import "core:math"
 import "core:math/linalg"
+import "core:container/priority_queue"
 
 import rl "vendor:raylib"
 
@@ -16,34 +17,65 @@ uiElement :: struct {
     variant: union{cityBanner},
 }
 
-uiElementRender :: proc(element: ^uiElement) {
-    switch e in element.variant {
-    case cityBanner: cityBannerRender(element)
-    }
+renderUiElements :: proc() {
+    for i := 0; i < len(uiElements.queue); i += 1 {
+        element := &uiElements.queue[i]
+
+        switch e in element.variant {
+        case cityBanner: cityBannerRender(element)
+        }
+    } 
+}
+
+catchInputsWithUiElements :: proc() {
+    for i := 0; i < len(uiElements.queue); i += 1 {
+        element := &uiElements.queue[i]
+
+        switch e in element.variant {
+        case cityBanner: cityBannerHandleInput(element)
+        }
+    } 
 }
 
 cityBanner :: struct {
     source: ^City,
 }
 
-CityBannerCreate :: proc(source: ^City) -> uiElement {
+CityBannerCreate :: proc(source: ^City) {
+    priority_queue.push(
+        &uiElements, 
+        uiElement {
+            is_vacant = false, 
+            z_index = 0,
+            variant = cityBanner{source},
+        },
+    )
+}
+
+cityBannerGetRect :: proc(using cb: cityBanner) -> Rect {
+    scale := 1.0 / cam.zoom
+    lift := 20.0 * scale
+    
+    coords := source.location.coordinate
+    x := f32(coords.x)*tileSize + tileSize/2
+    y := f32(coords.y)*tileSize - lift
+    
+    width := 128. * scale
+    height := 32. * scale
+
     return {
-        is_vacant = false, 
-        z_index = 0,
-        variant = cityBanner{source},
+        x = x - width/2,
+        y = y,
+        width = width,
+        height = height,
     }
 }
 
 cityBannerRender :: proc(element: ^uiElement) {
-    using city := element.variant.(cityBanner).source
+    cb := element.variant.(cityBanner)
+    using city := cb.source
     
-    scale := 1.0 / cam.zoom
-    lift := 20.0*scale
-    x := f32(location.coordinate.x)*tileSize + tileSize/2
-    y := f32(location.coordinate.y)*tileSize - lift 
-    width := 128.0*scale
-    height := 32.0*scale
-    rect := Rect{x - width/2, y, width, height}
+    rect := cityBannerGetRect(cb)
     rl.DrawRectangleRec(rect, rl.GetColor(0xaa2299bb))
     pop_rect := chopRectangle(&rect, rect.width/4, .LEFT)
     showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT)
@@ -51,6 +83,15 @@ cityBannerRender :: proc(element: ^uiElement) {
     strings.write_int(&builder, len(population))
     pop_text := strings.to_cstring(&builder)
     showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER)
+}
+
+cityBannerHandleInput :: proc(element: ^uiElement) {
+    cb := element.variant.(cityBanner)
+
+    rect := cityBannerGetRect(cb)
+    if isMouseInRect(rect, .MAP) && rl.IsMouseButtonPressed(.LEFT) {
+        selectedCity = cb.source
+    }
 }
 
 uiState :: enum {
@@ -138,6 +179,15 @@ showButton :: proc(rect: Rect, color: Color, was_pressed: ^bool, mode: DrawMode,
     return v
 }
 
+isMouseInRect :: proc(rect: Rect, mode: DrawMode) -> bool {
+    world_mouse := rl.GetScreenToWorld2D(mousePosition, cam)    
+    switch mode {
+    case .MAP: return rl.CheckCollisionPointRec(world_mouse, rect)
+    case .UI: return rl.CheckCollisionPointRec(mousePosition, rect)
+    }
+    unreachable()
+}
+
 showBanners :: proc() {
     for &c, index in game.cities {
         if cityIsVisibleToPlayer(&c) {
@@ -168,11 +218,10 @@ showBanners :: proc() {
 }
 
 showUnitIcons :: proc() {
-    for &u, index in game.units._inner {
-        if u.generation >= 0 {
-            showUnitIcon(&u._inner, index)
-        }
-        assert(index < 128)
+    for i in 0..<handledArrayLen(game.units) {
+        u := handledArrayIndex(&game.units, i).? or_continue
+        showUnitIcon(u, i)
+        assert(i < 128)
     }
     @(static) ps :[128]bool = {}
     showUnitIcon :: proc(using u : ^Unit, index: int) {    
@@ -199,6 +248,7 @@ showCityUI :: proc() {
     }
 }
 
+@(deferred_in=handleSidebarInput)
 showSidebar :: proc(r: Rect) {
     r := r
     padding :: 1.45
@@ -211,8 +261,6 @@ showSidebar :: proc(r: Rect) {
     showRect(title_rect, rl.GetColor(0x992465ff))
     text_box := Rect{title_rect.x + title_rect.width/10, title_rect.y + title_rect.height/10, title_rect.width*0.8, title_rect.height*0.8}
     showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER)
-    @(static) ps: [256]bool = {}
-    index := 0
     for tech_id in game.playerFaction.techs {
         tech := &TechnologyManifest[tech_id]
         item: for project in tech.projects {
@@ -232,20 +280,31 @@ showSidebar :: proc(r: Rect) {
                 }
             }
             entry_rect := chopRectangle(&r, entry_size, .TOP)
-            if showButton(entry_rect, rl.PURPLE, &ps[index], .UI) {
-                if rl.IsMouseButtonPressed(.LEFT) {
-                    selectedCity.project = project
-                    selectedCity = nil
-                }
-            }
+            showRect(entry_rect, rl.PURPLE) // the actual button
             sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
             showSprite(sprite_rect, texture)
             entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
             showRect(entry_rect, rl.GetColor(0x18181899))
             entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
             showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
-            index += 1
-            assert(index <= len(ps))
+        }
+    }
+}
+
+handleSidebarInput :: proc(r: Rect) {
+    r := r
+    assert(selectedCity != nil)
+    
+    _ = chopRectangle(&r, r.height/5.0, .TOP)
+    entry_size := r.height/5
+    for tech_id in game.playerFaction.techs {
+        tech := &TechnologyManifest[tech_id]
+        for project in tech.projects {
+            entry_rect := chopRectangle(&r, entry_size, .TOP)
+            if isMouseInRect(entry_rect, .UI) && rl.IsMouseButtonPressed(.LEFT) {
+                selectedCity.project = project
+                selectedCity = nil
+            }
         }
     }
 }
@@ -316,6 +375,7 @@ showPlayerStats :: proc() {
     using game
 
     r := subRectangle(windowRect, 0, 0, windowDimensions.x, windowDimensions.y / 8)
+    rl.DrawRectangleRec(r, rl.DARKGRAY)
     r2 := subRectangle(r, 0.03, 0.25, windowDimensions.x * 0.97, windowDimensions.y / 16)
     sb := strings.builder_make(context.temp_allocator)
 

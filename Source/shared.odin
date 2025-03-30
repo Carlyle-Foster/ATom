@@ -1,5 +1,7 @@
 package ATom
 
+import "core:container/priority_queue"
+
 import rl "vendor:raylib"
 
 Color :: rl.Color
@@ -52,6 +54,12 @@ MovementType :: enum {
 }
 
 game: GameState
+
+uiElements := priority_queue.Priority_Queue(uiElement){
+    queue = make([dynamic]uiElement, len = 0, cap = 128),
+    less = proc(a, b: uiElement) -> bool { return a.z_index < b.z_index },
+    swap = priority_queue.default_swap_proc(uiElement),
+}
 
 turn: int = 0
 

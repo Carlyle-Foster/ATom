@@ -159,7 +159,9 @@ handleWorldSpaceInput :: proc() {
     switch currentUIState {
         case .MAP: 
             showBorders()
-            showBanners()
+            // showBanners()
+            renderUiElements()
+            catchInputsWithUiElements()
             showUnitIcons()
             renderPops()
         case .TECH: {}

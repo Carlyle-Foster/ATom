@@ -55,6 +55,7 @@ createCity :: proc(f: ^Faction, t: ^Tile) -> ^City {
     }
     t.flags += { .CONTAINS_CITY }
     city.population = { createCitizen(city) }
+    CityBannerCreate(city)
     return city
 }
 
