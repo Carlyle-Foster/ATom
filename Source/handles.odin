@@ -66,3 +66,15 @@ handleRemove :: proc(ha: ^HandledArray($T), h: Handle(T)) -> Maybe(T) {
     }
     
 }
+handledArrayLen :: proc(using ha: HandledArray($T)) -> int {
+    return len(_inner) - len(vacancies)
+}
+handledArrayIndex :: proc(ha: ^HandledArray($T), index: int) -> Maybe(^T) {
+    entry := &ha._inner[index]
+    if entry.generation >= 0 {
+        return &entry._inner
+    }
+    else {
+        return nil
+    }
+}
