@@ -26,6 +26,7 @@ initializeGameState :: proc(map_width, map_height: i32, number_of_factions: int)
 
 startGame :: proc() {
     rl.SetRandomSeed(u32(time.now()._nsec))
+
     // rl.SetRandomSeed(2)
 
     rl.SetTargetFPS(60)
@@ -45,9 +46,9 @@ startGame :: proc() {
         map_height = 52,//64, 
     )
     generateWorld(tiles_per_island = i16(rl.GetRandomValue(480, 1024)))
-    for &t in game.world.tiles {
-        t.discovery_mask += {int(game.playerFaction.id)}
-    }
+    // for &t in game.world.tiles {
+    //     t.discovery_mask += {int(game.playerFaction.id)}
+    // }
 
     for &f in game.factions {
         count := 0

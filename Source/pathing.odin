@@ -31,7 +31,7 @@ findPath :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
         if count > 4096 do return {}
         // log.debug("    ", selected_tile.coordinate)
         for tl in getTilesInRadius(selected_tile, 1, include_center = false) {
-            if getTileMovementType(tl) in unit.type.habitat {
+            if getTileMovementType(tl) in unit.type.habitat || int(unit.owner.id) not_in tl.discovery_mask {
                 node := new(A_StarNode, context.temp_allocator)
                 node^ = {start, end, tl, selected_node, selected_node.cost + 1}
                 priority_queue.push(&frontier, node)
@@ -44,7 +44,7 @@ findPath :: proc(start: ^Tile, end: ^Tile, unit: ^Unit) -> [dynamic]^Tile {
     // log.debug("} END SEARCH")
     path := make([dynamic]^Tile, 0, 128) 
     for {
-        if selected_node.parent == nil {
+        if selected_node == nil || selected_node.parent == nil {
             break
         }
         append(&path, selected_node.current_tile)

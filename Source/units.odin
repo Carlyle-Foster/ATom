@@ -45,12 +45,17 @@ updateUnit :: proc(uh: Handle(Unit)) {
 advanceUnit :: proc(uh: Handle(Unit)) {
     u := handleRetrieve(&game.units, uh).? or_else unreachable()
     for ; u.stamina > 0 && len(u.path) > 0; u.stamina -= 1 {
+        tile := pop(&u.path, )
+        if tile.terrain.movement_type not_in u.type.habitat { // this can happen when we set course for unknown terrains
+            clear(&u.path)
+            break
+        }
         for handle, index in u.tile.units {
             if handle == uh {
                 unordered_remove(&u.tile.units, index)
             }
         }
-        u.tile = pop(&u.path, )
+        u.tile = tile
         unitEnteredTile(uh, u.tile)
     }
 }
@@ -58,6 +63,7 @@ advanceUnit :: proc(uh: Handle(Unit)) {
 sendUnitToTile :: proc(uh: Handle(Unit), t: ^Tile) {
     u := handleRetrieve(&game.units, uh).? or_else unreachable()
 
+    delete(u.path)
     u.path = findPath(u.tile, t, u)
     for tile in u.path {
         log.debug(tile.coordinate.x, tile.coordinate.y)
@@ -69,15 +75,16 @@ unitEnteredTile :: proc(uh: Handle(Unit), t: ^Tile) {
     u := handleRetrieve(&game.units, uh).? or_else unreachable()
     for h in t.units {
         mb_enemy := handleRetrieve(&game.units, h).? or_else unreachable()
-        if mb_enemy.owner == u.owner do continue
-        odds := calculateBattleOdds(u^, mb_enemy^)
-        roll := rand.float32()
-        if roll <= odds { // we win
-            destroyUnit(h)
-            log.debug("ATTACKERS WON")
-        } else { // we lose
-            destroyUnit(uh)
-            log.debug("DEFENDERS WON")
+        if mb_enemy.owner == u.owner {
+            odds := calculateBattleOdds(u^, mb_enemy^)
+            roll := rand.float32()
+            if roll <= odds { // we win
+                destroyUnit(h)
+                log.debug("ATTACKERS WON")
+            } else { // we lose
+                destroyUnit(uh)
+                log.debug("DEFENDERS WON")
+            }
         }
     }
     append(&t.units, uh)
