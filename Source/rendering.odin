@@ -2,6 +2,18 @@ package ATom
 
 import rl "vendor:raylib"
 
+UnitRenderer :: struct {
+    unit: ^Unit,
+}
+
+TextureManifest :: struct {
+    city: Texture,
+    valet: Texture,
+    pop: Texture,
+    technology: Texture,
+    tile_set: Texture,
+}
+
 renderGameMap :: proc() {
     size := i32(tileSize)
     offset_unit: f32 = 128

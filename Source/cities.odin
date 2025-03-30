@@ -4,6 +4,34 @@ import "core:log"
 import "core:strings"
 import "core:math"
 
+import rl "vendor:raylib"
+
+City :: struct {
+    name: cstring,
+    owner: ^Faction,
+    destroyed: bool,
+    population: [dynamic]Pop,
+    buildings: [dynamic]Building,
+    growth: f32, 
+    hammers: f32,
+    project: ProjectType,
+    location: ^Tile,
+    tiles: [dynamic]^Tile,
+    renderer_id: int,
+}
+
+Building :: struct {
+    type: ^BuildingType,
+}
+
+BuildingType :: struct {
+    name: cstring,
+    texture: rl.Texture,
+    yields: [YieldType]f32,
+    multipliers: [YieldType]f32,
+    cost: i32,
+}
+
 createCity :: proc(f: ^Faction, t: ^Tile) -> ^City {
     append(&game.cities, City{
         name = getNextCityName(f), 

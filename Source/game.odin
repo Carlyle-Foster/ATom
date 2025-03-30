@@ -5,6 +5,14 @@ import "core:time"
 
 import rl "vendor:raylib"
 
+GameState :: struct {
+    world: World,
+    factions: [dynamic]Faction,
+    cities: [dynamic]City,
+    units: HandledArray(Unit),
+    playerFaction: ^Faction,
+}
+
 initializeGameState :: proc(map_width, map_height: i32, number_of_factions: int) -> GameState {
     factions := generateFactions(number_of_factions)
     return GameState {

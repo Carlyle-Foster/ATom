@@ -8,6 +8,12 @@ import "core:math/linalg"
 
 import rl "vendor:raylib"
 
+World :: struct {
+    dimensions: Vector2,
+    tiles: [dynamic]Tile,
+    seed: i64,
+}
+
 initializeWorld :: proc(width, height: i32, starting_terrain: Terrain, seed: i64 = 0) -> World {
     assert(width > 0)
     assert(height > 0)

@@ -2,6 +2,30 @@ package ATom
 
 import "core:math/rand"
 
+Tile :: struct {
+    coordinate: Coordinate,
+    terrain: ^Terrain,
+    resource: ResourceType,
+    owner: ^City,
+    units: [dynamic]Handle(Unit),
+    discovery_mask: bit_set[0..<32],
+    visibility_mask: [32]u8,
+    flags: bit_set[TileFlags],
+}
+
+TileFlags :: enum {
+    CONTAINS_CITY,
+    WORKED,
+}
+
+Terrain :: struct {
+    name: cstring,
+    id: i32,
+    yields: [YieldType]f32,
+    movement_type: MovementType,
+    spawn_rate: i32,
+}
+
 createTile :: proc(coordinate: Coordinate, terrain: ^Terrain, resource: ResourceType) -> Tile {
     return Tile {
         coordinate = coordinate, 

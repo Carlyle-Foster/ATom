@@ -3,6 +3,27 @@ package ATom
 import "core:log"
 import "core:math/rand"
 
+import rl "vendor:raylib"
+
+Unit :: struct {
+    type: ^UnitType,
+    owner: ^Faction,
+    tile: ^Tile,
+    path: [dynamic]^Tile,
+    stamina: i32,
+    renderer: UnitRenderer,
+}
+
+UnitType :: struct {
+    name: cstring,
+    texture: rl.Texture,
+    strength: i32,
+    defense: i32,
+    stamina: i32,
+    habitat: bit_set[MovementType],
+    cost: i32,
+}
+
 createUnit :: proc(ut: ^UnitType, f: ^Faction, t: ^Tile) {
     log.debug("unit created at coordinates:", t.coordinate, "at tile:", t)
 

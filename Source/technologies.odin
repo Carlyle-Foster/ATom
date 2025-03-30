@@ -4,6 +4,14 @@ import "core:log"
 
 import rl "vendor:raylib"
 
+Technology :: struct {
+    id: int,
+    name: cstring,
+    projects: [dynamic]ProjectType,
+    cost: int,
+}
+MAX_TECHS :: 128
+
 drawTechnology :: proc(r: Rect, t: Technology) {
     @(static) ps: [MAX_TECHS]bool = {}
     researched := t.id in game.playerFaction.techs

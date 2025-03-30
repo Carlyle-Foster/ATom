@@ -9,6 +9,56 @@ import rl "vendor:raylib"
 
 // import tech "../technologies"
 
+uiElement :: struct {
+    is_vacant: bool,
+    z_index: int,
+
+    variant: union{cityBanner},
+}
+
+uiElementRender :: proc(element: ^uiElement) {
+    switch e in element.variant {
+    case cityBanner: cityBannerRender(element)
+    }
+}
+
+cityBanner :: struct {
+    source: ^City,
+}
+
+CityBannerCreate :: proc(source: ^City) -> uiElement {
+    return {
+        is_vacant = false, 
+        z_index = 0,
+        variant = cityBanner{source},
+    }
+}
+
+cityBannerRender :: proc(element: ^uiElement) {
+    using city := element.variant.(cityBanner).source
+    
+    scale := 1.0 / cam.zoom
+    lift := 20.0*scale
+    x := f32(location.coordinate.x)*tileSize + tileSize/2
+    y := f32(location.coordinate.y)*tileSize - lift 
+    width := 128.0*scale
+    height := 32.0*scale
+    rect := Rect{x - width/2, y, width, height}
+    rl.DrawRectangleRec(rect, rl.GetColor(0xaa2299bb))
+    pop_rect := chopRectangle(&rect, rect.width/4, .LEFT)
+    showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT)
+    builder := strings.builder_make()
+    strings.write_int(&builder, len(population))
+    pop_text := strings.to_cstring(&builder)
+    showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER)
+}
+
+uiState :: enum {
+    MAP,
+    TECH,
+}
+currentUIState := uiState.MAP
+
 DrawMode :: enum {
     MAP,
     UI,

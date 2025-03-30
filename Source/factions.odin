@@ -5,6 +5,25 @@ import "core:math/rand"
 import "core:math/linalg"
 import "core:container/small_array"
 
+import rl "vendor:raylib"
+
+Faction :: struct {
+    type: ^FactionType,
+    id: u32,
+    cities: [dynamic]^City,
+    units:  [dynamic]Handle(Unit),
+    gold: f32,
+    science: f32,
+    techs: bit_set[0..<MAX_TECHS],
+    research_project: Technology,
+}
+
+FactionType :: struct {
+    name: cstring,
+    primary_color: rl.Color,
+    secondary_color: rl.Color,
+}
+
 generateFactions :: proc(faction_count: int) -> [dynamic]Faction {
     factions: [dynamic]Faction = {}
     contenders: small_array.Small_Array(256, int)
