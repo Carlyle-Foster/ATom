@@ -99,5 +99,5 @@ destroyUnit :: proc(uh: Handle(Unit)) {
 }
 
 calculateBattleOdds :: proc(me, u: Unit) -> f32 {
-    return 1.
+    return .5
 }
