@@ -75,7 +75,7 @@ unitEnteredTile :: proc(uh: Handle(Unit), t: ^Tile) {
     u := handleRetrieve(&game.units, uh).? or_else unreachable()
     for h in t.units {
         mb_enemy := handleRetrieve(&game.units, h).? or_else unreachable()
-        if mb_enemy.owner == u.owner {
+        if mb_enemy.owner != u.owner {
             odds := calculateBattleOdds(u^, mb_enemy^)
             roll := rand.float32()
             if roll <= odds { // we win
