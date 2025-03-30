@@ -375,7 +375,7 @@ showPlayerStats :: proc() {
     using game
 
     r := subRectangle(windowRect, 0, 0, windowDimensions.x, windowDimensions.y / 8)
-    rl.DrawRectangleRec(r, rl.DARKGRAY)
+    rl.DrawRectangleRec(r, rl.DARKPURPLE)
     r2 := subRectangle(r, 0.03, 0.25, windowDimensions.x * 0.97, windowDimensions.y / 16)
     sb := strings.builder_make(context.temp_allocator)
 
@@ -396,7 +396,7 @@ showCurrentTurn :: proc() {
     sb := strings.builder_make(context.temp_allocator)
 
     fmt.sbprintf(&sb, "Turn: %v", turn)
-    showText(chopRectangle(&r2, windowDimensions.x/8, .RIGHT), rl.PURPLE, strings.to_cstring(&sb), .HALFWAY)
+    showText(chopRectangle(&r2, windowDimensions.x/8, .RIGHT), rl.PINK, strings.to_cstring(&sb), .HALFWAY)
     strings.builder_reset(&sb)
 }
 
