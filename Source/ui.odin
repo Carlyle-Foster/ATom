@@ -232,6 +232,16 @@ showUnitIcons :: proc() {
         width := 96.0*scale
         height := 24.0*scale
         rect := Rect{x - width/2, y, width, height}
+
+        // wherein we take a stupid approach to showing multiple stacked unit icons
+        for uh in u.tile.units {
+            unit := handleRetrieve(&game.units, uh).? or_continue
+            if unit == u {
+                break
+            }
+            rect.y -= rect.height * 1.1
+        }
+
         if showButton(rect, u.owner.type.primary_color, &ps[index], .MAP) {
             if rl.IsMouseButtonPressed(.LEFT) {
                 selectedUnit = handleFromIndex(&game.units, i16(index))
