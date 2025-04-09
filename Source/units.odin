@@ -46,6 +46,7 @@ advanceUnit :: proc(uh: Handle(Unit)) {
     u := handleRetrieve(&game.units, uh).? or_else unreachable()
     for ; u.stamina > 0 && len(u.path) > 0; u.stamina -= 1 {
         tile := pop(&u.path, )
+        assert(tile != u.tile)
         if tile.terrain.movement_type not_in u.type.habitat { // this can happen when we set course for unknown terrains
             clear(&u.path)
             break
@@ -53,6 +54,7 @@ advanceUnit :: proc(uh: Handle(Unit)) {
         for handle, index in u.tile.units {
             if handle == uh {
                 unordered_remove(&u.tile.units, index)
+                break
             }
         }
         u.tile = tile
@@ -84,6 +86,7 @@ unitEnteredTile :: proc(uh: Handle(Unit), t: ^Tile) {
             } else { // we lose
                 destroyUnit(uh)
                 log.debug("DEFENDERS WON")
+                return // so we don't fallthrough
             }
         }
     }
