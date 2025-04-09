@@ -238,9 +238,6 @@ handleInput_MAP :: proc() {
                 sendUnitToTile(selectedUnit, tileUnderMouse)
             }
         }
-        else {
-            createCity(game.playerFaction, tileUnderMouse)
-        }
     }
     if rl.IsKeyPressed(.T) {
         currentUIState = .TECH
