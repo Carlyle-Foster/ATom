@@ -98,12 +98,6 @@ startGame :: proc() {
         mouseMovement = rl.GetScreenToWorld2D(mousePosition, cam) - rl.GetScreenToWorld2D(lastMousePostion, cam)
         
         findFocus(mousePosition, cam)
-        if rl.IsKeyPressed(.T) {
-            currentUIState = .TECH
-        }
-        if rl.IsKeyPressed(.M) {
-            currentUIState = .MAP
-        }
         if rl.IsKeyPressed(.R) {
             regenerateManifests(db, "sqlite/SQL")
         }
@@ -245,13 +239,16 @@ handleInput_MAP :: proc() {
     if rl.IsKeyPressed(.A) {
         nextTurn(automate_player_turn = true)
     }
+    if rl.IsKeyDown(.A) && rl.IsKeyDown(.LEFT_SHIFT) {
+        nextTurn(automate_player_turn = true)
+    }
     showPlayerStats()
     showCurrentTurn()
     p2 = false
 }
 
 handleInput_TECH :: proc() {
-    if rl.IsKeyPressed(.M) {
+    if rl.IsKeyPressed(.T) {
         currentUIState = .MAP
     }
 }
