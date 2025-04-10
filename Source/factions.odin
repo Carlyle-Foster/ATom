@@ -103,31 +103,48 @@ doAiTurn :: proc(f: ^Faction) {
     for city in f.cities {
         for &p, i in city.population {
             if p.state == .UNEMPLOYED && i < len(city.tiles) {
-                chosen := chooseTileToWork(f, city)
-                employCitizen(&p, chosen)
+                chosen, ok := chooseTileToWork(f, city).?
+                if ok {
+                    employCitizen(&p, chosen)
+                }
             }
         }
-        if len(city.location.units) == 0 && city.project == nil {
+        needed_protection := len(city.population)
+        if city.project == nil {
             surroundings: bit_set[MovementType]
             for tile in city.tiles {
                 surroundings += {tile.terrain.movement_type}
             }
-            for project in projectManifest {
+            projects: for project in projectManifest {
                 switch type in project {
-                    case ^UnitType:
-                        if type.habitat & surroundings != {} {
-                            city.project = project
-                            break
-                        }
-                    case ^BuildingType: 
-                        continue
-                }
+                case ^UnitType:
+                    if len(city.location.units) >= needed_protection { continue }
+                    if type.habitat & surroundings != {} {
+                        city.project = project
+                        break
+                    }
+                case ^BuildingType: 
+                    if len(city.location.units) < needed_protection { continue }
+                    for b in city.buildings {
+                        if b.type.name == project.(^BuildingType).name { continue projects }
+                    }
+                    city.project = project
+                    break
+            }
+            }
+        }
+    }
+    if f.research_project.id == -1 {
+        for tech in TechnologyManifest {
+            if tech.id not_in f.techs {
+                f.research_project = tech
+                break
             }
         }
     }
 }
 
-chooseTileToWork :: proc(f: ^Faction, c: ^City) -> ^Tile {
+chooseTileToWork :: proc(f: ^Faction, c: ^City) -> Maybe(^Tile) {
     chosen: ^Tile
     high_score := 0
     
