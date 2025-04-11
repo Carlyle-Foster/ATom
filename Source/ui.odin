@@ -5,34 +5,43 @@ import "core:strings"
 import "core:math"
 import "core:math/linalg"
 import "core:container/priority_queue"
+import "core:log"
 
 import rl "vendor:raylib"
 
 // import tech "../technologies"
 
 uiElement :: struct {
-    is_vacant: bool,
+    variant: union{cityBanner, cityProductionMenu},
     z_index: int,
-
-    variant: union{cityBanner},
+    is_vacant: bool,
 }
 
-renderUiElements :: proc() {
-    for i := 0; i < len(uiElements.queue); i += 1 {
-        element := &uiElements.queue[i]
+renderUiElements_WORLD :: proc() {
+    for &element in uiElements_WORLD.queue {
+        #partial switch v in element.variant {
+        case cityBanner: cityBannerRender(v)
+        }
+    } 
+}
 
-        switch e in element.variant {
-        case cityBanner: cityBannerRender(element)
+renderUiElements_SCREEN :: proc() {
+    for &element in uiElements_SCREEN.queue {
+        #partial switch &v in element.variant {
+        case cityProductionMenu: cityProductionMenuRender(&v)
         }
     } 
 }
 
 catchInputsWithUiElements :: proc() {
-    for i := 0; i < len(uiElements.queue); i += 1 {
-        element := &uiElements.queue[i]
-
-        switch e in element.variant {
-        case cityBanner: cityBannerHandleInput(element)
+    #reverse for &element in uiElements_SCREEN.queue {
+        #partial switch v in element.variant {
+        case cityProductionMenu: cityProductionMenuHandleInput(v)
+        }
+    } 
+    #reverse for &element in uiElements_WORLD.queue {
+        #partial switch v in element.variant {
+        case cityBanner: cityBannerHandleInput(v)
         }
     } 
 }
@@ -43,7 +52,7 @@ cityBanner :: struct {
 
 CityBannerCreate :: proc(source: ^City) {
     priority_queue.push(
-        &uiElements, 
+        &uiElements_WORLD, 
         uiElement {
             is_vacant = false, 
             z_index = 0,
@@ -71,8 +80,7 @@ cityBannerGetRect :: proc(using cb: cityBanner) -> Rect {
     }
 }
 
-cityBannerRender :: proc(element: ^uiElement) {
-    cb := element.variant.(cityBanner)
+cityBannerRender :: proc(cb: cityBanner) {
     using city := cb.source
     
     rect := cityBannerGetRect(cb)
@@ -85,12 +93,93 @@ cityBannerRender :: proc(element: ^uiElement) {
     showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER)
 }
 
-cityBannerHandleInput :: proc(element: ^uiElement) {
-    cb := element.variant.(cityBanner)
-
+cityBannerHandleInput :: proc(cb: cityBanner) {
     rect := cityBannerGetRect(cb)
     if isMouseInRect(rect, .MAP) && rl.IsMouseButtonPressed(.LEFT) {
         selectedCity = cb.source
+    }
+}
+
+cityProductionMenu :: struct {
+    body: Rect,
+    title: Rect,
+    hovered_item: Maybe(ProjectType),
+    buildables: [dynamic]ProjectType,
+    entry_size: f32,
+    is_active: bool,
+}
+
+cityProductionMenuUpdate :: proc(pm: ^cityProductionMenu) {
+    pm.hovered_item = nil
+    pm.is_active = selectedCity != nil && selectedCity.owner == game.playerFaction
+    log.debug(size_of(uiElement))
+
+    if pm.is_active {
+        pm.body = subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER)
+        pm.title = chopRectangle(&pm.body, pm.body.height/5.0, .TOP)
+        pm.entry_size = pm.body.height/5
+
+        r := pm.body
+        clear(&pm.buildables)
+        for tech_id in game.playerFaction.techs {
+            tech := &TechnologyManifest[tech_id]
+            
+            item: for project in tech.projects {
+                switch type in project {
+                case ^BuildingType: for b in selectedCity.buildings {
+                    if b.type == type { continue item }
+                }
+                case ^UnitType: {}
+                }
+                if isMouseInRect(chopRectangle(&r, pm.entry_size, .TOP), .UI) {
+                    pm.hovered_item = project
+                }
+                append(&pm.buildables, project)
+            }
+        }
+    }
+}
+
+cityProductionMenuRender :: proc(using pm: ^cityProductionMenu) {
+    cityProductionMenuUpdate(pm)
+    if is_active {
+        showRect(body, rl.PURPLE)
+        showRect(title, rl.GetColor(0x992465ff))
+        
+        text := selectedCity.name
+        text_box := Rect{title.x + title.width/10, title.y + title.height/10, title.width*0.8, title.height*0.8}
+        showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER)
+
+        r := body
+        for project in pm.buildables {
+            name := getProjectName(project)
+            texture := getProjectTexture(project)
+
+            entry_rect := chopRectangle(&r, entry_size, .TOP)
+            showRect(entry_rect, rl.PURPLE) // the actual button
+
+            sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
+            showSprite(sprite_rect, texture)
+            
+            color := rl.GetColor(0x18181899)
+            if item, ok := pm.hovered_item.?; ok && item == project {
+                color = rl.VIOLET
+            }
+            entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
+            showRect(entry_rect, color)
+
+            entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
+            showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
+        }
+    }
+}
+
+cityProductionMenuHandleInput :: proc(pm: cityProductionMenu) {
+    if item, ok := pm.hovered_item.?; ok {
+        if rl.IsMouseButtonPressed(.LEFT) { 
+            selectedCity.project = item
+            selectedCity = nil
+        }
     }
 }
 
@@ -253,70 +342,14 @@ showUnitIcons :: proc() {
 
 showCityUI :: proc() {
     showSidebar2(subRectangle(windowRect, 0.2, 0.8, ALIGN_RIGHT, ALIGN_CENTER))
-    if selectedCity.owner == game.playerFaction {
-        showSidebar(subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER))
-    }
 }
 
-@(deferred_in=handleSidebarInput)
 showSidebar :: proc(r: Rect) {
-    r := r
-    padding :: 1.45
-    assert(selectedCity != nil)
-    
-    showRect(r, rl.PURPLE)
-    text: cstring = selectedCity.name
-    title_rect := chopRectangle(&r, r.height/5.0, .TOP)
-    entry_size := r.height/5
-    showRect(title_rect, rl.GetColor(0x992465ff))
-    text_box := Rect{title_rect.x + title_rect.width/10, title_rect.y + title_rect.height/10, title_rect.width*0.8, title_rect.height*0.8}
-    showText(text_box, rl.GetColor(0x229f54ff), text, ALIGN_CENTER)
-    for tech_id in game.playerFaction.techs {
-        tech := &TechnologyManifest[tech_id]
-        item: for project in tech.projects {
-            name: cstring 
-            texture: rl.Texture  
-            switch type in project {
-                case ^UnitType: {
-                    name = type.name
-                    texture = type.texture
-                }
-                case ^BuildingType: {
-                    for b in selectedCity.buildings {
-                        if b.type == type do continue item
-                    }
-                    name = type.name
-                    texture = type.texture
-                }
-            }
-            entry_rect := chopRectangle(&r, entry_size, .TOP)
-            showRect(entry_rect, rl.PURPLE) // the actual button
-            sprite_rect := chopRectangle(&entry_rect, entry_rect.width/4, .LEFT)
-            showSprite(sprite_rect, texture)
-            entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
-            showRect(entry_rect, rl.GetColor(0x18181899))
-            entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
-            showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
-        }
-    }
+
 }
 
 handleSidebarInput :: proc(r: Rect) {
-    r := r
-    assert(selectedCity != nil)
-    
-    _ = chopRectangle(&r, r.height/5.0, .TOP)
-    entry_size := r.height/5
-    for tech_id in game.playerFaction.techs {
-        tech := &TechnologyManifest[tech_id]
-        for project in tech.projects {
-            entry_rect := chopRectangle(&r, entry_size, .TOP)
-            if isMouseInRect(entry_rect, .UI) && rl.IsMouseButtonPressed(.LEFT) {
-                selectedCity.project = project
-                selectedCity = nil
-            }
-        }
-    }
+
 }
 
 showSidebar2 :: proc(r: Rect) {

@@ -2,6 +2,8 @@ package ATom
 
 import "core:log"
 import "core:time"
+import "core:strings"
+import "core:container/priority_queue"
 
 import rl "vendor:raylib"
 
@@ -75,16 +77,21 @@ startGame :: proc() {
 
     initAudio()
 
-    textures.city = rl.LoadTexture("Assets/Sprites/townsend.png")
-    defer rl.UnloadTexture(textures.city)
-    textures.pop = rl.LoadTexture("Assets/Sprites/pop.png")
-    defer rl.UnloadTexture(textures.pop)
-    textures.technology = rl.LoadTexture("Assets/Sprites/technology.jpg")
-    defer rl.UnloadTexture(textures.technology)
-    textures.tile_set = rl.LoadTexture("Assets/tileset-2.png")
-    defer rl.UnloadTexture(textures.tile_set)
+    textures.city = loadTexture("Sprites/townsend.png")
+    textures.pop = loadTexture("Sprites/pop.png")
+    textures.technology = loadTexture("Sprites/technology.jpg")
+    textures.tile_set = loadTexture("tileset-2.png")
 
     shader := rl.LoadShader(nil, "Shaders/default.frag")
+
+    priority_queue.push(
+        &uiElements_SCREEN, 
+        uiElement {
+            is_vacant = false, 
+            z_index = 1,
+            variant = cityProductionMenu{},
+        },
+    )
     
     for !rl.WindowShouldClose() {
 
@@ -102,8 +109,23 @@ startGame :: proc() {
             regenerateManifests(db, "sqlite/SQL")
         }
         updateWindowSize()
-        handleScreenSpaceInput()
-        handleWorldSpaceInput()
+        switch currentUIState {
+            case .MAP: 
+                rl.BeginMode2D(cam)
+                renderGameMap()
+                showBorders()
+                renderPops()
+                showUnitIcons()
+                renderUiElements_WORLD()
+                rl.EndMode2D()
+                renderUiElements_SCREEN()
+                catchInputsWithUiElements()
+                handleInput_MAP()
+            case .TECH: 
+                handleInput_TECH()
+                //TODO: this should be worldspace when we get tech scrolling 8)
+                drawTechScreen(windowRect)
+        }
         rl.EndShaderMode()
         rl.EndDrawing()
 
@@ -119,49 +141,8 @@ updateWindowSize :: proc() {
     windowRect.height = window_height
     windowDimensions = Vector2{window_width, window_height}
 
-    // defaultTileSize := window_height/8
-    // tileSize = defaultTileSize
-    // map_space := game.world.dimensions.x*tileSize
-    // //too thorny
-    // speculative_x := cam.target.x*(tileSize/old_tile_size)
-    // cam_offset := abs(speculative_x - map_space/2)
-    // pixels_to_cover := map_space - cam_offset*2 
-    // pixels_covered := windowDimensions.x / cam.zoom
-    // tiles_to_cover := pixels_to_cover / tileSize
-    // if pixels_covered > pixels_to_cover {
-    //     tileSize = pixels_covered / tiles_to_cover
-    // }
     cam.offset = windowDimensions/2
     cam.target = cam.target*(tileSize/old_tile_size)
-}
-
-handleScreenSpaceInput :: proc() {
-    switch currentUIState {
-        case .MAP: 
-            rl.BeginMode2D(cam)
-            renderGameMap()
-            rl.EndMode2D()
-            handleInput_MAP()
-        case .TECH: 
-            handleInput_TECH()
-            //TODO: this should be worldspace when we get tech scrolling 8)
-            drawTechScreen(windowRect)
-    }
-}
-
-handleWorldSpaceInput :: proc() {    
-    rl.BeginMode2D(cam)
-    switch currentUIState {
-        case .MAP: 
-            showBorders()
-            // showBanners()
-            renderUiElements()
-            catchInputsWithUiElements()
-            showUnitIcons()
-            renderPops()
-        case .TECH: {}
-    }
-    rl.EndMode2D()
 }
 
 handleInput_MAP :: proc() {
@@ -303,20 +284,10 @@ updateCamera :: proc() {
         if rl.IsMouseButtonPressed(.LEFT) {
             mouseMovement = Vector2{0,0}
         }
-        old_target := cam.target
         cam.target -= mouseMovement
-        if false // cameraLookingOutside() 
-        {
-            cam.target = old_target
-        }
         camNoZoom.target = cam.target
     }
-    old_zoom := cam.zoom
     cam.zoom += rl.GetMouseWheelMoveV().y / 12.0
-    if false // cameraLookingOutside() 
-    {
-        cam.zoom = old_zoom
-    }
 }
 
 cameraLookingOutside :: proc() -> bool {
@@ -346,4 +317,15 @@ unloadAssets :: proc() {
     for building_type in BuildingTypeManifest {
         rl.UnloadTexture(building_type.texture)
     }
+}
+
+@(deferred_out=rl.UnloadTexture)
+loadTexture :: proc(path: string) -> Texture {
+    sb := strings.builder_make()
+    strings.write_string(&sb,"Assets/")
+    strings.write_string(&sb,path)
+
+    //TODO: this probably leaks a little memory
+
+    return rl.LoadTexture(strings.to_cstring(&sb))
 }

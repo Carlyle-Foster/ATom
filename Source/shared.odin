@@ -55,7 +55,13 @@ MovementType :: enum {
 
 game: GameState
 
-uiElements := priority_queue.Priority_Queue(uiElement){
+uiElements_SCREEN := priority_queue.Priority_Queue(uiElement){
+    queue = make([dynamic]uiElement, len = 0, cap = 128),
+    less = proc(a, b: uiElement) -> bool { return a.z_index < b.z_index },
+    swap = priority_queue.default_swap_proc(uiElement),
+}
+
+uiElements_WORLD := priority_queue.Priority_Queue(uiElement){
     queue = make([dynamic]uiElement, len = 0, cap = 128),
     less = proc(a, b: uiElement) -> bool { return a.z_index < b.z_index },
     swap = priority_queue.default_swap_proc(uiElement),
