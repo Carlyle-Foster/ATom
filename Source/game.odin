@@ -92,6 +92,14 @@ startGame :: proc() {
             variant = cityProductionMenu{},
         },
     )
+    priority_queue.push(
+        &uiElements_SCREEN, 
+        uiElement {
+            is_vacant = false, 
+            z_index = 1,
+            variant = cityBuiltBuildingsMenu{},
+        },
+    )
     
     for !rl.WindowShouldClose() {
 
@@ -115,7 +123,6 @@ startGame :: proc() {
                 renderGameMap()
                 showBorders()
                 renderPops()
-                showUnitIcons()
                 renderUiElements_WORLD()
                 rl.EndMode2D()
                 renderUiElements_SCREEN()
@@ -163,9 +170,6 @@ handleInput_MAP :: proc() {
             if rl.IsMouseButtonPressed(.LEFT) {
                 nextTurn()
             }
-        }
-        if selectedCity != nil {
-            showCityUI()
         }
         showUnitBoxIfNecessary(windowRect)
     }

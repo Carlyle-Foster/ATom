@@ -38,7 +38,7 @@ createCity :: proc(f: ^Faction, t: ^Tile) -> ^City {
         owner = f, 
         destroyed = false, 
         population = {}, 
-        buildings = {},
+        buildings = {Building{type = &BuildingTypeManifest[0]}, Building{type = &BuildingTypeManifest[1]}},
         growth = 0.0, 
         project = {}, 
         location = t, 

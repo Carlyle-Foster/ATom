@@ -5,22 +5,23 @@ import "core:strings"
 import "core:math"
 import "core:math/linalg"
 import "core:container/priority_queue"
-import "core:log"
+// import "core:log"
 
 import rl "vendor:raylib"
 
 // import tech "../technologies"
 
 uiElement :: struct {
-    variant: union{cityBanner, cityProductionMenu},
+    variant: union{cityBanner, cityProductionMenu, cityBuiltBuildingsMenu, unitIcon},
     z_index: int,
     is_vacant: bool,
 }
 
 renderUiElements_WORLD :: proc() {
     for &element in uiElements_WORLD.queue {
-        #partial switch v in element.variant {
+        #partial switch &v in element.variant {
         case cityBanner: cityBannerRender(v)
+        case unitIcon: unitIconRender(&v)
         }
     } 
 }
@@ -29,6 +30,7 @@ renderUiElements_SCREEN :: proc() {
     for &element in uiElements_SCREEN.queue {
         #partial switch &v in element.variant {
         case cityProductionMenu: cityProductionMenuRender(&v)
+        case cityBuiltBuildingsMenu: cityBuiltBuildingsMenuRender(&v)
         }
     } 
 }
@@ -42,6 +44,7 @@ catchInputsWithUiElements :: proc() {
     #reverse for &element in uiElements_WORLD.queue {
         #partial switch v in element.variant {
         case cityBanner: cityBannerHandleInput(v)
+        case unitIcon: unitIconHandleInput(v)
         }
     } 
 }
@@ -112,7 +115,6 @@ cityProductionMenu :: struct {
 cityProductionMenuUpdate :: proc(pm: ^cityProductionMenu) {
     pm.hovered_item = nil
     pm.is_active = selectedCity != nil && selectedCity.owner == game.playerFaction
-    log.debug(size_of(uiElement))
 
     if pm.is_active {
         pm.body = subRectangle(windowRect, 0.2, 0.8, ALIGN_LEFT, ALIGN_CENTER)
@@ -180,6 +182,91 @@ cityProductionMenuHandleInput :: proc(pm: cityProductionMenu) {
             selectedCity.project = item
             selectedCity = nil
         }
+    }
+}
+
+cityBuiltBuildingsMenu :: struct {}
+
+cityBuiltBuildingsMenuRender :: proc(bb: ^cityBuiltBuildingsMenu) {
+    if selectedCity != nil {
+        r := subRectangle(windowRect, 0.2, 0.75, ALIGN_RIGHT, ALIGN_CENTER)
+        entry_size := r.height/5
+        for building in selectedCity.buildings {
+            name := building.type.name
+            texture := building.type.texture
+            entry_rect := chopRectangle(&r, entry_size, .TOP)
+            showRect(entry_rect, rl.PURPLE)
+            sprite_rect := chopRectangle(&entry_rect, r.width/3, .LEFT)
+            showSprite(sprite_rect, texture)
+            entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
+            showRect(entry_rect, rl.GetColor(0x18181899))
+            entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
+            showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
+        }
+    }
+}
+
+unitIcon :: struct {
+    handle: Handle(Unit),
+    source: Maybe(^Unit),
+    box: Rect,
+}
+
+unitIconCreate :: proc(uh: Handle(Unit)) {
+    ic := unitIcon {
+        handle = uh,
+    }
+    priority_queue.push(
+        &uiElements_WORLD,
+        uiElement {
+            is_vacant = false,
+            z_index = 2,
+            variant = ic,
+        },
+    )
+}
+
+unitIconUpdate :: proc(ic: ^unitIcon) {
+    ic.source = handleRetrieve(&game.units, ic.handle)
+    u, ok := ic.source.?
+    if !ok { return }
+
+    scale := 1.0 / cam.zoom
+    lift := 16.0*scale
+    x := f32(u.tile.coordinate.x)*tileSize + tileSize/2
+    y := f32(u.tile.coordinate.y)*tileSize - lift 
+    width := 96.0*scale
+    height := 24.0*scale
+    rect := Rect{x - width/2, y, width, height}
+
+    // wherein we take a stupid approach to showing multiple stacked unit icons
+    for uh in u.tile.units {
+        unit := handleRetrieve(&game.units, uh).? or_continue
+        if unit == u {
+            break
+        }
+        rect.y -= rect.height * 1.1
+    }
+    ic.box = rect
+}
+
+unitIconRender :: proc(ic: ^unitIcon) {
+    unitIconUpdate(ic)
+
+    u, ok := ic.source.?
+    if !ok { return }
+
+    faction := u.owner.type
+    showRect(ic.box, faction.primary_color)
+    showText(ic.box, faction.secondary_color, faction.name, ALIGN_CENTER)
+}
+
+unitIconHandleInput :: proc(ic: unitIcon) {
+    _, ok := ic.source.?
+    if !ok { return }
+
+    if isMouseInRect(ic.box, .MAP) && rl.IsMouseButtonPressed(.LEFT) {
+        selectedUnit = ic.handle
     }
 }
 
@@ -275,101 +362,6 @@ isMouseInRect :: proc(rect: Rect, mode: DrawMode) -> bool {
     case .UI: return rl.CheckCollisionPointRec(mousePosition, rect)
     }
     unreachable()
-}
-
-showBanners :: proc() {
-    for &c, index in game.cities {
-        if cityIsVisibleToPlayer(&c) {
-            showBanner(&c, index)
-        }
-    }
-    @(static) ps :[128]bool = {}
-    showBanner :: proc(using city : ^City, index: int) {
-        scale := 1.0 / cam.zoom
-        lift := 20.0*scale
-        x := f32(location.coordinate.x)*tileSize + tileSize/2
-        y := f32(location.coordinate.y)*tileSize - lift 
-        width := 128.0*scale
-        height := 32.0*scale
-        rect := Rect{x - width/2, y, width, height}
-        if showButton(rect, rl.GetColor(0xaa2299bb), &ps[index], .MAP) {
-            if rl.IsMouseButtonPressed(.LEFT) {
-                selectedCity = city
-            }
-        }
-        pop_rect := chopRectangle(&rect, rect.width/4, .LEFT)
-        showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT)
-        builder := strings.builder_make()
-        strings.write_int(&builder, len(population))
-        pop_text := strings.to_cstring(&builder)
-        showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER)
-    }
-}
-
-showUnitIcons :: proc() {
-    for i in 0..<handledArrayLen(game.units) {
-        u := handledArrayIndex(&game.units, i).? or_continue
-        showUnitIcon(u, i)
-        assert(i < 128)
-    }
-    @(static) ps :[128]bool = {}
-    showUnitIcon :: proc(using u : ^Unit, index: int) {    
-        scale := 1.0 / cam.zoom
-        lift := 16.0*scale
-        x := f32(tile.coordinate.x)*tileSize + tileSize/2
-        y := f32(tile.coordinate.y)*tileSize - lift 
-        width := 96.0*scale
-        height := 24.0*scale
-        rect := Rect{x - width/2, y, width, height}
-
-        // wherein we take a stupid approach to showing multiple stacked unit icons
-        for uh in u.tile.units {
-            unit := handleRetrieve(&game.units, uh).? or_continue
-            if unit == u {
-                break
-            }
-            rect.y -= rect.height * 1.1
-        }
-
-        if showButton(rect, u.owner.type.primary_color, &ps[index], .MAP) {
-            if rl.IsMouseButtonPressed(.LEFT) {
-                selectedUnit = handleFromIndex(&game.units, i16(index))
-            }
-        }
-        showText(rect, u.owner.type.secondary_color, type.name, ALIGN_CENTER)
-    }
-}
-
-showCityUI :: proc() {
-    showSidebar2(subRectangle(windowRect, 0.2, 0.8, ALIGN_RIGHT, ALIGN_CENTER))
-}
-
-showSidebar :: proc(r: Rect) {
-
-}
-
-handleSidebarInput :: proc(r: Rect) {
-
-}
-
-showSidebar2 :: proc(r: Rect) {
-    r := r
-    padding :: 1.45
-    assert(selectedCity != nil)
-
-    // entry_size := r.height/5
-    for building in selectedCity.buildings {
-        name := building.type.name
-        texture := building.type.texture
-        entry_rect := chopRectangle(&r, r.height/8, .TOP)
-        showRect(entry_rect, rl.PURPLE)
-        sprite_rect := chopRectangle(&entry_rect, r.width/3, .LEFT)
-        showSprite(sprite_rect, texture)
-        entry_rect = subRectangle(entry_rect, 1.0, 0.35, ALIGN_LEFT, ALIGN_TOP)
-        showRect(entry_rect, rl.GetColor(0x18181899))
-        entry_rect = subRectangle(entry_rect, 0.97, 0.77, ALIGN_RIGHT, ALIGN_TOP)
-        showText(entry_rect, rl.GetColor(0xaaaaffff), name, ALIGN_LEFT, rl.GOLD)
-    }
 }
 
 showBorders :: proc() {

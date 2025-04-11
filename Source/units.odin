@@ -32,6 +32,7 @@ createUnit :: proc(ut: ^UnitType, f: ^Faction, t: ^Tile) {
     unit := handleRetrieve(&game.units, new_unit).? or_else unreachable()
     unitEnteredTile(new_unit, t)
     createUnitRenderer(unit)
+    unitIconCreate(new_unit)
     log.info("new unit: ", new_unit)
 }
 
