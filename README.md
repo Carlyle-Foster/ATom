@@ -7,7 +7,7 @@ To build the project, first run
 python sqlite/build.py
 ```
 
-once to build the sqlite amalgamation, and from then on
+once to download & build the sqlite amalgamation, from then on
 ```shell
 odin run ./Source -out:ATom
 ```
