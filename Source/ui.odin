@@ -92,7 +92,7 @@ cityBannerRender :: proc(cb: cityBanner) {
     showText(rect, rl.GetColor(0x5299ccbb), name, ALIGN_LEFT)
     builder := strings.builder_make()
     strings.write_int(&builder, len(population))
-    pop_text := strings.to_cstring(&builder)
+    pop_text, _ := strings.to_cstring(&builder)
     showText(pop_rect, rl.GOLD, pop_text, ALIGN_CENTER)
 }
 
@@ -415,11 +415,13 @@ showPlayerStats :: proc() {
     sb := strings.builder_make(context.temp_allocator)
 
     fmt.sbprintf(&sb, "Science: %v", playerFaction.science)
-    showText(chopRectangle(&r2, windowDimensions.x/8, .LEFT), rl.SKYBLUE, strings.to_cstring(&sb), .HALFWAY)
+    cs , _ := strings.to_cstring(&sb)
+    showText(chopRectangle(&r2, windowDimensions.x/8, .LEFT), rl.SKYBLUE, cs, .HALFWAY)
     strings.builder_reset(&sb)
 
     fmt.sbprintf(&sb, "Gold: %v", playerFaction.gold)
-    showText(chopRectangle(&r2, windowDimensions.x/8, .LEFT), rl.GOLD, strings.to_cstring(&sb), .HALFWAY)
+    cs, _ = strings.to_cstring(&sb)
+    showText(chopRectangle(&r2, windowDimensions.x/8, .LEFT), rl.GOLD, cs, .HALFWAY)
     strings.builder_reset(&sb)
 }
 
@@ -431,7 +433,8 @@ showCurrentTurn :: proc() {
     sb := strings.builder_make(context.temp_allocator)
 
     fmt.sbprintf(&sb, "Turn: %v", turn)
-    showText(chopRectangle(&r2, windowDimensions.x/8, .RIGHT), rl.PINK, strings.to_cstring(&sb), .HALFWAY)
+    cs, _ := strings.to_cstring(&sb)
+    showText(chopRectangle(&r2, windowDimensions.x/8, .RIGHT), rl.PINK, cs, .HALFWAY)
     strings.builder_reset(&sb)
 }
 

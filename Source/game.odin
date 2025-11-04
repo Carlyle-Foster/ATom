@@ -27,6 +27,7 @@ initializeGameState :: proc(map_width, map_height: i32, number_of_factions: int)
 }
 
 startGame :: proc() {
+    init_ui_system()
     rl.SetRandomSeed(u32(time.now()._nsec))
 
     // rl.SetRandomSeed(2)
@@ -331,5 +332,6 @@ loadTexture :: proc(path: string) -> Texture {
 
     //TODO: this probably leaks a little memory
 
-    return rl.LoadTexture(strings.to_cstring(&sb))
+    cs, _ := strings.to_cstring(&sb)
+    return rl.LoadTexture(cs)
 }

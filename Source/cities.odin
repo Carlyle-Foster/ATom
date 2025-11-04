@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package ATom
 
 import "core:log"
@@ -66,7 +67,8 @@ getNextCityName :: proc(f: ^Faction) -> cstring {
     strings.write_string(&builder, " ")
     strings.write_int(&builder, count)
     count += 1
-    return strings.to_cstring(&builder)
+    cs, _ := strings.to_cstring(&builder)
+    return cs
 }
 
 cityGetPopCost :: proc(c: City) -> f32 {
