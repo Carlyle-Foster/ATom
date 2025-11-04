@@ -1,10 +1,10 @@
 package sqlite
 
 when ODIN_OS == .Windows {
-    foreign import sqlite "../Build/Cache/sqlite.lib"
+    foreign import sqlite "./sqlite.lib"
 }
 else {
-    foreign import sqlite "../Build/Cache/sqlite.a"
+    foreign import sqlite "./sqlite.a"
 }
 
 @(link_prefix="sqlite3_")

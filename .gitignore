@@ -3,3 +3,5 @@ Build
 .vscode
 ols*
 *.db
+*.a
+*.lib
